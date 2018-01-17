@@ -2,29 +2,31 @@
 # 8 May 2017
 # Alice Lepissier
 
-############################
-# INDEX                    #
-############################
+## ## ## ## ## ## ## ## ## ##
+# INDEX                  ####
+## ## ## ## ## ## ## ## ## ##
 # Preamble
 # Functions
 # Data
 # Specification 1:
-### Optimize over 1995-2001, less covariates
+# .. Optimize over 1995-2001, less covariates
 # Synth 1
+# Generate Results 1
 # Specification 2:
-### Optimize over 1990-2001, all covariates
+# .. Optimize over 1990-2001, all covariates
 # Synth 2
 # Placebo test for specification 1
 # Trajectory balancing
 
 
 
-############################
-# PREAMBLE                 #
-############################
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/ScandiSynth/Results") # Alice laptop
-#setwd("~/Box Sync/LepissierMildenberger/ScandiSynth/Results") # Matto
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/ScandiSynth/Results") # Alice work
+## ## ## ## ## ## ## ## ## ##
+# PREAMBLE               ####
+## ## ## ## ## ## ## ## ## ##
+
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
+#setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
+#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(Synth)
 library(foreign)
 library(plyr)
@@ -32,12 +34,13 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(devtools)
+library(stargazer)
 
 
 
-############################
-# FUNCTIONS                #
-############################
+## ## ## ## ## ## ## ## ## ##
+# FUNCTIONS              ####
+## ## ## ## ## ## ## ## ## ##
 
 whodat <- function(id) {
   country <- data[which(data$countryid == id), 2][1]
@@ -55,9 +58,9 @@ whoder <- function() {
 
 
 
-############################
-# DATA                     #
-############################
+## ## ## ## ## ## ## ## ## ##
+# DATA                   ####
+## ## ## ## ## ## ## ## ## ##
 
 data <- read.dta("WDI.dta")
 whoder()
@@ -66,6 +69,11 @@ ggplot(data, aes(x = year, y = CO2_emissions_PC, col = countryname)) +
   geom_line()
 
 ggplot(data[which(data$countrycode == "GBR"), ], aes(x = year, y = CO2_emissions_PC, col = countryname)) +
+  geom_line() + geom_vline(xintercept = 2001, lty = 2) + 
+  geom_smooth(se=F)
+
+ggplot(data[which(data$countrycode == "GBR" & data$year>1994 & data$year<2006), ],
+       aes(x = year, y = CO2_emissions_PC, col = countryname)) +
   geom_line() + geom_vline(xintercept = 2001, lty = 2) + 
   geom_smooth(se=F)
 
@@ -130,11 +138,11 @@ whoder()
 
 
 
-############################
-# SPECIFICATION 1          #
-############################
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 1        ####
+## ## ## ## ## ## ## ## ## ##
 
-# Optimize over 1995-2001
+# .. Optimize over 1995-2001 ####
 # Less covariates
 # Counterfactual looks better
 
@@ -186,30 +194,30 @@ dataprep.out$Z1
 
 
 
-############################
-# SYNTH 1                  #
-############################
+## ## ## ## ## ## ## ## ## ##
+# SYNTH 1                ####
+## ## ## ## ## ## ## ## ## ##
 
-# Running Synth
+# .. Running Synth ####
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-# Calculating annual discrepancy in emissions per capita between
-# the UK and its synthetic counterpart
+# .. Calculating annual discrepancy in emissions per capita ####
+# between the UK and its synthetic counterpart
 gaps <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 
 # Housekeping
 synth.tables <- synth.tab(dataprep.res = dataprep.out,
                           synth.res = synth.out)
 
-# Pre-treatment predictor values for the UK, for the synthetic control unit,
-# and for all units in the sample
+# .. Pre-treatment predictor values ####
+# for the UK, for the synthetic control unit, and for all units in the sample
 synth.tables$tab.pred
 
-# Weights for the predictor variables
+# .. Weights for the predictor variables ####
 synth.tables$tab.v
 
-# Weights for countries in the donor pool
+# .. Weights for countries in the donor pool ####
 synth.tables$tab.w
 
 # Plot emissions per capita pre- and post-intervention in the
@@ -218,27 +226,160 @@ path.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions per capita",
           Xlab = "Year",
-          #Ylim = c(0,12),
-          Main = "Synthetic Counterfactual",
+          Ylim = c(7,12),
+          Main = "Observed and Synthetic Counterfactual Emissions",
           Legend = c("United Kingdom","Synthetic UK"),
           Legend.position = "bottomright")
-abline(v = 2001)
+abline(v = 2001, lty = 2)
+#lines(seq(1995,2005,1), result$Y1plot, col = "red")
+#lines(seq(1995,2005,1), synth, col = "green")
+
 
 # Plot gaps in outcomes between the UK and the synthetic control
 gaps.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions per capita",
           Xlab = "Year",
-          #Ylim = c(-1.5,1.5),
+          Ylim = c(-1.5,1.5),
           Main = "Gap between Treated and Synthetic Control")
-abline(v = 2001)
+abline(v = 2001, lty = 2)
 
 
-############################
-# SPECIFICATION 2          #
-############################
 
-# Optimize over 1990-2001
+## ## ## ## ## ## ## ## ## ##
+# GENERATE RESULTS 1     ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Outcomes ####
+names(dataprep.out)
+
+dataprep.out$Y0plot
+# Outcome variable in donor pool
+
+dataprep.out$Y1plot
+# Outcome variable in treated unit
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+years <- seq(1995,2005,1)
+# Pre- and post-intervention periods
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
+
+# .. Recreating built-in Synth graph for paths ####
+pdf("../Figures/Emissions paths in treated and synth.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot, 
+     type = "l", col = "royalblue4", lwd = 2,
+     xlim = c(1995,2005), ylim = c(7,12), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions per capita")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
+abline(v = 2001, lty = 2)
+legend(2001.73, 7.98, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(2000, 8, 2000.9, 8, length = 0.1, code = 2)
+text(1998.9, 8.04, "CCL enacted", cex = 0.8)
+dev.off()
+
+# .. Convert emissions per capita to tonnes and mega tonnes ####
+result <- data.frame(year = years, gaps = gaps)
+colnames(result) <- c("year", "gapPerCap")
+
+sum(result[7:11,2])
+# Sum of gaps in CO2 per capita emissions between the UK and its synthetic counterpart,
+# for 2001-2005. This is a work-around, I will implement a numerical integration method
+# to get the area between the curves.
+
+population <- read.csv("population.csv", header = T)
+population <- population[which(population$ISO == "GBR"),]
+population$population <- population$population*10^3
+
+result <- merge(result, population, by.x = "year", by.y = "year")
+result$gaptCO2 <- result$gapPerCap * result$population
+result$gapMtCO2 <- result$gaptCO2 / 10^6
+(postCCL.avoidedPerCap <- sum(result$gapPerCap[7:11]))
+(postCCL.avoidedMtCO2 <- sum(result$gapMtCO2[7:11]))
+result <- result[-3]
+
+# .. Recreating built-in Synth graph for gaps ####
+pdf("../Figures/Gaps in emissions per capita.pdf", 
+    height = 4.5, width = 6)
+par(mar = c(5.1, 4.1, 4.1, 3.1))
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, gaps, 
+     type = "l", col = "purple", lwd = 2,
+     xlim = c(1995,2005), 
+     ylim = c(-1.5,1.5), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions per capita")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(2000, -1, 2000.9, -1, length = 0.1, code = 2)
+text(1998.9, -1, "CCL enacted", cex = 0.8)
+par(new = TRUE, mar = c(5.1, 4.1, 4.1, 3.1))
+plot(years, result$gapMtCO2, type = "n",
+     axes = F, xlab = "", ylab = "",
+     xlim = c(1995,2005),
+     ylim = c(-90,90))
+intervals <- seq(from = -90, to = 90, by = 30)
+axis(side = 4, at = intervals, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+mtext(side = 4, expression(paste("MegaTons of ","CO"[2])), line = 2)
+dev.off()
+
+# .. Simple unformatted graphs ####
+plot(result$year, result$gaptCO2, 
+     type = "l", lwd = 2,
+     ylim = c(-90*10^6, 90*10^6),
+     xlab = "Year",
+     ylab = "Tonnes of CO2",
+     main = "Gaps between Synthetic UK and UK")
+abline(h = 0, lty = 2)
+abline(v = 2001, lty = 2)
+
+plot(result$year, result$gapMtCO2, 
+     type = "l", lwd = 2,
+     ylim = c(-90, 90),
+     xlab = "Year",
+     ylab = "MegaTonnes of CO2",
+     main = "Gaps between Synthetic UK and UK")
+abline(h = 0, lty = 2)
+abline(v = 2001, lty = 2)
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 2        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1990-2001 ####
 # All covariates
 # Counterfactual doesn't look as good as option 1
 
@@ -290,30 +431,30 @@ dataprep.out$Z1
 
 
 
-############################
-# SYNTH 2                  #
-############################
+## ## ## ## ## ## ## ## ## ##
+# SYNTH 2                ####
+## ## ## ## ## ## ## ## ## ##
 
-# Running Synth
+# .. Running Synth ####
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-# Calculating annual discrepancy in emissions per capita between
-# the UK and its synthetic counterpart
+# .. Calculating annual discrepancy in emissions per capita #### 
+# between the UK and its synthetic counterpart
 gaps <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 
 # Housekeping
 synth.tables <- synth.tab(dataprep.res = dataprep.out,
                           synth.res = synth.out)
 
-# Pre-treatment predictor values for the UK, for the synthetic control unit,
-# and for all units in the sample
+# .. Pre-treatment predictor values ####
+# for the UK, for the synthetic control unit, and for all units in the sample
 synth.tables$tab.pred
 
-# Weights for the predictor variables
+# .. Weights for the predictor variables ####
 synth.tables$tab.v
 
-# Weights for countries in the donor pool
+# .. Weights for countries in the donor pool ####
 synth.tables$tab.w
 
 # Plot emissions per capita pre- and post-intervention in the
@@ -339,9 +480,9 @@ abline(v = 2001)
 
 
 
-############################
-# PLACEBO TEST 1           #
-############################
+## ## ## ## ## ## ## ## ## ##
+# PLACEBO TEST 1         ####
+## ## ## ## ## ## ## ## ## ##
 
 # Placebo test for specification 1
 # Mexico is the placebo (only passed carbon tax in 2013)
@@ -385,15 +526,15 @@ dataprep.out <-
            time.optimize.ssr = 1995:2001,
            time.plot = 1995:2005)
 
-# Running Synth
+# .. Running Synth ####
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-# Calculating annual discrepancy in emissions per capita between
-# the placebo and its synthetic counterpart
+# .. Calculating annual discrepancy in emissions per capita ####
+# between the placebo and its synthetic counterpart
 gaps <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 
-# Plot emissions per capita pre- and post-intervention in the
+# Plot emissions per capita pre- and post-intervention in the placebo
 # and in the synthetic control
 path.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
@@ -405,20 +546,130 @@ path.plot(synth.res = synth.out,
           Legend.position = "bottomright")
 abline(v = 2001)
 
-# Plot gaps in outcomes between Mexico and the synthetic control
+# .. Plot gaps in outcomes between Mexico and the synthetic control ####
 gaps.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions per capita",
           Xlab = "Year",
           Ylim = c(-1.5,1.5),
-          Main = "Gap between Treated and Synthetic Control")
+          Main = "Gap between Placebo and Synthetic Control")
 abline(v = 2001)
 
 
 
-############################
-# TRAJECTORY BALANCING     #
-############################
+## ## ## ## ## ## ## ## ## ##
+# GENERATE PLACEBO 1     ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Outcomes ####
+names(dataprep.out)
+
+dataprep.out$Y0plot
+# Outcome variable in donor pool
+
+dataprep.out$Y1plot
+# Outcome variable in treated unit
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+years <- seq(1995,2005,1)
+# Pre- and post-intervention periods
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
+
+# .. Recreating built-in Synth graph for paths ####
+pdf("../Figures/Emissions paths in placebo and synth.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot, 
+     type = "l", col = "#11904E", lwd = 2,
+     xlim = c(1995,2005), 
+     ylim = c(2.5, 5), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions per capita")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, synth, col = "#014421", lty = 2, lwd = 2)
+abline(v = 2001, lty = 2)
+legend(2001.6, 2.99, c("Mexico", "Synthetic Mexico"),
+       lty = c(1,2), lwd = c(2,2), col = c("#11904E", "#014421"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(2000, 3, 2000.9, 3, length = 0.1, code = 2)
+text(1998.9, 3.02, "CCL enacted", cex = 0.8)
+dev.off()
+
+# .. Convert emissions per capita to tonnes and mega tonnes ####
+result <- data.frame(year = years, gaps = gaps)
+colnames(result) <- c("year", "gapPerCap")
+
+sum(result[7:11,2])
+# Sum of gaps in CO2 per capita emissions between the UK and its synthetic counterpart,
+# for 2001-2005. This is a work-around, I will implement a numerical integration method
+# to get the area between the curves.
+
+population <- read.csv("population.csv", header = T)
+population <- population[which(population$ISO == "MEX"),]
+population$population <- population$population*10^3
+
+result <- merge(result, population, by.x = "year", by.y = "year")
+result$gaptCO2 <- result$gapPerCap * result$population
+result$gapMtCO2 <- result$gaptCO2 / 10^6
+(postCCL.avoidedPerCap <- sum(result$gapPerCap[7:11]))
+(postCCL.avoidedMtCO2 <- sum(result$gapMtCO2[7:11]))
+result <- result[-3]
+
+# .. Recreating built-in Synth graph for gaps ####
+pdf("../Figures/Gaps in emissions per capita_placebo.pdf", 
+    height = 4.5, width = 6)
+par(mar = c(5.1, 4.1, 4.1, 3.1))
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, gaps, 
+     type = "l", col = "purple", lwd = 2,
+     xlim = c(1995,2005), 
+     ylim = c(-1.5,1.5), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions per capita")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(2000, -1, 2000.9, -1, length = 0.1, code = 2)
+text(1998.9, -1, "CCL enacted", cex = 0.8)
+par(new = TRUE, mar = c(5.1, 4.1, 4.1, 3.1))
+plot(years, result$gapMtCO2, type = "n",
+     axes = F, xlab = "", ylab = "",
+     xlim = c(1995,2005),
+     ylim = c(-150,150))
+axis(side = 4, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+mtext(side = 4, expression(paste("MegaTons of ","CO"[2])), line = 2)
+dev.off()
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# TRAJECTORY BALANCING   ####
+## ## ## ## ## ## ## ## ## ##
 
 devtools::install_github("chadhazlett/kbal")
 
