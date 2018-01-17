@@ -1,4 +1,4 @@
-# ScanSynth
+# Synth
 # 8 May 2017
 # Alice Lepissier
 
