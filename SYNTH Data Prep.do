@@ -14,8 +14,8 @@ set more off
 /* //////////////////////////////////////
 CHANGE YOUR WORKING DIRECTORY HERE
 ////////////////////////////////////// */
-cd "C:\Users\Alice\Box Sync\LepissierMildenberger\ScandiSynth" // Laptop
-*cd "C:\boxsync\alepissier\LepissierMildenberger\ScandiSynth" // Bren Desktop
+*cd "C:\Users\Alice\Box Sync\LepissierMildenberger\Synth" // Laptop
+cd "C:\boxsync\alepissier\LepissierMildenberger\Synth" // Bren Desktop
 global data "Raw data"
 global results "Results"
 global log "Logs"
@@ -64,7 +64,7 @@ label var CO2_emissions_PC "CO2 emissions per capita"
 saveold "$results\WDI.dta", replace
 
 
-global indic "NY.GDP.PCAP.KD EG.IMP.CONS.ZS EG.FEC.RNEW.ZS EG.USE.COMM.FO.ZS GC.TAX.TOTL.GD.ZS EG.GDP.PUSE.KO.PP.KD NY.GDP.TOTL.RT.ZS SE.XPD.TOTL.GD.ZS NY.GDP.MKTP.KD.ZG EG.ELC.RNEW.ZS EG.USE.PCAP.KG.OE TX.VAL.FUEL.ZS.UN NE.EXP.GNFS.ZS NE.IMP.GNFS.ZS"
+global indic "NY.GDP.PCAP.KD EG.IMP.CONS.ZS EG.FEC.RNEW.ZS EG.USE.COMM.FO.ZS GC.TAX.TOTL.GD.ZS EG.GDP.PUSE.KO.PP.KD NY.GDP.TOTL.RT.ZS SE.XPD.TOTL.GD.ZS NY.GDP.MKTP.KD.ZG EG.ELC.RNEW.ZS EG.USE.PCAP.KG.OE TX.VAL.FUEL.ZS.UN NE.EXP.GNFS.ZS NE.IMP.GNFS.ZS EN.ATM.CO2E.KT"
 foreach i in $indic {
 local WB = lower(`"`i'"')
 local varname = subinstr(`"`WB'"', "." , "_" , .)
@@ -161,6 +161,11 @@ NE.IMP.GNFS.ZS
 Imports of goods and services (% of GDP)
 Imports of goods and services represent the value of all goods and other market services received from the rest of the world. They include the value of merchandise, freight, insurance, transport, travel, royalties, license fees, and other services, such as communication, construction, financial, information, business, personal, and government services. They exclude compensation of employees and investment income (formerly called factor services) and transfer payments.
 Source: World Bank national accounts data, and OECD National Accounts data files.
+
+EN.ATM.CO2E.KT
+CO2 emissions (kt)
+Carbon dioxide emissions are those stemming from the burning of fossil fuels and the manufacture of cement. They include carbon dioxide produced during consumption of solid, liquid, and gas fuels and gas flaring.
+
 
 TO CHECK OUT
 - Trade imports and exports
