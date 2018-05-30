@@ -51,16 +51,17 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
+#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
 #setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
+setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
 library(dplyr)
-library(foreign)
+library(foreign) # Deprecated with newest R updated
 library(gghighlight)
 library(ggplot2)
-library(plyr)
+library(readstata13) # Using
 library(tidyr)
+library(plyr)
 library(stargazer)
 library(Synth)
 
@@ -90,7 +91,7 @@ whoder <- function() {
 # DATA                   ####
 ## ## ## ## ## ## ## ## ## ##
 
-data <- read.dta("WDI.dta")
+data <- read.dta13("WDI.dta")
 whoder()
 
 nmiss <- ddply(data, "countryid", summarize,
@@ -107,8 +108,8 @@ nmiss <- ddply(data, "countryid", summarize,
                energyuseinkg.missing = sum(is.na(eg_use_pcap_kg_oe)),
                fuelexportspc.missing = sum(is.na(tx_val_fuel_zs_un)))
 
-missing <- subset(nmiss, (nmiss$gdp.missing != 0) | 
-                    ((nmiss$energyimports.missing > 12)
+missing <- subset(nmiss, (nmiss$gdp.missing > 20)
+                     & (nmiss$energyimports.missing > 12)
                      & (nmiss$renewablecons.missing > 20)
                      & (nmiss$FFconsumption.missing > 12)
                      & (nmiss$taxrevenuegdp.missing > 20)
@@ -119,7 +120,6 @@ missing <- subset(nmiss, (nmiss$gdp.missing != 0) |
                      & (nmiss$renewableelec.missing > 20)
                      & (nmiss$energyuseinkg.missing > 20)
                      & (nmiss$fuelexportspc.missing > 20))
-                  )
 
 missing <- t(missing[1])
 missing
