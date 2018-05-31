@@ -52,7 +52,7 @@
 ## ## ## ## ## ## ## ## ## ##
 
 #setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
-#setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
+setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
 setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
 library(dplyr)
@@ -94,8 +94,18 @@ whoder <- function() {
 data <- read.dta13("WDI.dta")
 whoder()
 
+data$scaledCO2 <- NA
+
+countrygroup <- group_by(data, data$countryid)
+base1990bycountry <- summarize(countrygroup,baseline = en_atm_co2e_kt[which(year==1990)])
+base1990bycountry$countryid <- unique(countrygroup$countryid)
+
+data <- join(data, base1990bycountry)
+data$rescaled1990 <- data$en_atm_co2e_kt/data$baseline
+
 nmiss <- ddply(data, "countryid", summarize,
                gdp.missing = sum(is.na(ny_gdp_pcap_kd)),
+               co2.missing = sum(is.na(rescaled1990)),
                energyimports.missing = sum(is.na(eg_imp_cons_zs)),
                renewablecons.missing = sum(is.na (eg_fec_rnew_zs)),
                FFconsumption.missing = sum(is.na(eg_use_comm_fo_zs)),
@@ -119,7 +129,8 @@ missing <- subset(nmiss, (nmiss$gdp.missing > 20)
                      & (nmiss$gdpgrowthannu.missing > 20)
                      & (nmiss$renewableelec.missing > 20)
                      & (nmiss$energyuseinkg.missing > 20)
-                     & (nmiss$fuelexportspc.missing > 20))
+                     & (nmiss$fuelexportspc.missing > 20)
+                     | (nmiss$co2.missing > 4))
 
 missing <- t(missing[1])
 missing
@@ -133,6 +144,7 @@ whoder()
 scandis <- c("DNK", "NLD", "NOR", "SWE")
 data <- subset(data, !(countrycode %in% scandis))
 whoder()
+
 
 # dispropor.donors <- c("FRA", "ISL")
 # data <- subset(data, !(countrycode %in% dispropor.donors))
@@ -166,6 +178,17 @@ ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = CO2_emissions_PC, co
   theme(legend.position="bottom", legend.title = element_blank())
 dev.off()
 
+pdf("../Figures/CO2 emissions (1990) in sample.pdf", 
+    height = 4.5, width = 6)
+ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = rescaled1990, col = countryname)) + 
+  geom_line() +
+  xlab("Year") + ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
+  ggtitle("Emissions trends in the United Kingdom and donor pool") +
+  geom_line(data = data[data$countrycode == "GBR",], 
+            aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
+  theme(legend.position="bottom", legend.title = element_blank())
+dev.off()
+
 # Zooming in
 ggplot(data[which(!data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data$CO2_emissions_PC <= 15),], 
        aes(x = year, y = CO2_emissions_PC, col = countryname)) + 
@@ -196,6 +219,8 @@ for (i in 1:length(control.units)){
 
 choose.time.predictors <- 1995:2001
 
+
+
 dataprep.out <-
   dataprep(foo = data,
            predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
@@ -218,6 +243,115 @@ dataprep.out <-
            special.predictors = list(
              list("CO2_emissions_PC" , choose.time.predictors , "mean")),
            dependent = "CO2_emissions_PC",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- dataprep.out
+
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 2       ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1995-2001 ####
+# Less covariates
+# Counterfactual looks better
+# Use 1990 baseline rather than GDP per capita
+
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1995:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
+                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
+                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
+                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
+                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
+                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
+                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
+                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
+                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
+                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
+                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
+                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
+                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
+                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
+           ),
+           predictors.op = "mean" ,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("rescaled1990" , choose.time.predictors , "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- dataprep.out
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 3     ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1995-2001 ####
+# NO COVARIATES
+
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1990:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors =NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean"),
+             list("rescaled1990", 1995:1996, "mean"),
+             list("rescaled1990", 1997:1998, "mean"),
+             list("rescaled1990", 1999:2000, "mean")),
+           dependent = "rescaled1990",
            unit.variable = "countryid",
            unit.names.variable = "countryname",
            time.variable = "year",
@@ -342,7 +476,7 @@ path.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions per capita",
           Xlab = "Year",
-          Ylim = c(7,12),
+          Ylim = c(0.9,1.1),
           Main = "Observed and Synthetic Counterfactual Emissions",
           Legend = c("United Kingdom","Synthetic UK"),
           Legend.position = "bottomright")
@@ -355,7 +489,7 @@ gaps.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions per capita",
           Xlab = "Year",
-          Ylim = c(-1.5,1.5),
+          Ylim = c(-.1,0.1),
           Main = "Gap between Treated and Synthetic Control")
 abline(v = 2001, lty = 2)
 
