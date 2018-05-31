@@ -8,14 +8,23 @@
 # Functions
 # Data
 # Specification 1   
-# .. Optimize over 1995-2001 
-# Synth 1 
+# .. Optimize over 1995-2001, CO2 per capita
+# Specification 2
+# .. Optimize over 1990-2001, CO2 per capita, no covariates
+# Specification 3
+# .. Optimize over 1995-2001, 1990 baseline
+# Specification 4
+# .. Optimize over 1990-2001, 1990 baseline, no covariates
+# Specification 5
+# .. Optimize over 1995-2001, difference in log levels
+# Specification Test
+# Synth
 # .. Running Synth 
 # .. Calculating annual discrepancy in emissions per capita between the UK and its synthetic counterpart
 # .. Pre-treatment predictor values 
 # .. Weights for the predictor variables 
 # .. Weights for countries in the donor pool 
-# Generate Results 1     
+# Generate Results    
 # .. Outcomes 
 # .. Recreating built-in Synth graph for paths 
 # .. Convert emissions per capita to tonnes and mega tonnes 
@@ -59,6 +68,7 @@ library(dplyr)
 library(foreign) # Deprecated with newest R updated
 library(gghighlight)
 library(ggplot2)
+library(gridExtra)
 library(readstata13) # Using
 library(tidyr)
 library(plyr)
@@ -96,12 +106,14 @@ whoder()
 
 data$scaledCO2 <- NA
 
-countrygroup <- group_by(data, data$countryid)
+countrygroup <- group_by(data, countryid)
 base1990bycountry <- summarize(countrygroup,baseline = en_atm_co2e_kt[which(year==1990)])
 base1990bycountry$countryid <- unique(countrygroup$countryid)
 
 data <- join(data, base1990bycountry)
 data$rescaled1990 <- data$en_atm_co2e_kt/data$baseline
+
+data$logdiff <- log(data$en_atm_co2e_kt/data$baseline)
 
 nmiss <- ddply(data, "countryid", summarize,
                gdp.missing = sum(is.na(ny_gdp_pcap_kd)),
@@ -144,7 +156,6 @@ whoder()
 scandis <- c("DNK", "NLD", "NOR", "SWE")
 data <- subset(data, !(countrycode %in% scandis))
 whoder()
-
 
 # dispropor.donors <- c("FRA", "ISL")
 # data <- subset(data, !(countrycode %in% dispropor.donors))
@@ -189,6 +200,17 @@ ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = rescaled1990, col = 
   theme(legend.position="bottom", legend.title = element_blank())
 dev.off()
 
+pdf("../Figures/CO2 emissions (1990 log diff) in sample.pdf", 
+    height = 4.5, width = 6)
+ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = logdiff, col = countryname)) + 
+  geom_line() +
+  xlab("Year") + ylab(expression(paste("CO"[2], " emissions against 1990 baseline (log difference)"))) +
+  ggtitle("Emissions trends in the United Kingdom and donor pool") +
+  geom_line(data = data[data$countrycode == "GBR",], 
+            aes(x = year, y = logdiff, col = "United Kingdom"), size = 1.5) +
+  theme(legend.position="bottom", legend.title = element_blank())
+dev.off()
+
 # Zooming in
 ggplot(data[which(!data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data$CO2_emissions_PC <= 15),], 
        aes(x = year, y = CO2_emissions_PC, col = countryname)) + 
@@ -206,7 +228,7 @@ ggplot(data[which(!data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data
 # SPECIFICATION 1        ####
 ## ## ## ## ## ## ## ## ## ##
 
-# .. Optimize over 1995-2001 ####
+# .. Optimize over 1995-2001, CO2 per capita ####
 # Less covariates
 # Counterfactual looks better
 
@@ -218,8 +240,6 @@ for (i in 1:length(control.units)){
 }
 
 choose.time.predictors <- 1995:2001
-
-
 
 dataprep.out <-
   dataprep(foo = data,
@@ -262,16 +282,59 @@ synth.spec <- dataprep.out
 
 
 
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 2        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1990-2001, CO2 per capita, no covariates ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1990:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("CO2_emissions_PC", 1991:1992, "mean"),
+             list("CO2_emissions_PC", 1993:1994, "mean"),
+             list("CO2_emissions_PC", 1995:1996, "mean"),
+             list("CO2_emissions_PC", 1997:1998, "mean"),
+             list("CO2_emissions_PC", 1999:2000, "mean")),
+           dependent = "CO2_emissions_PC",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- dataprep.out
+
+
 
 ## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 2       ####
+# SPECIFICATION 3        ####
 ## ## ## ## ## ## ## ## ## ##
 
-# .. Optimize over 1995-2001 ####
+# .. Optimize over 1995-2001, 1990 baseline ####
 # Less covariates
 # Counterfactual looks better
-# Use 1990 baseline rather than GDP per capita
-
 
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
@@ -324,12 +387,10 @@ synth.spec <- dataprep.out
 
 
 ## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 3     ####
+# SPECIFICATION 4        ####
 ## ## ## ## ## ## ## ## ## ##
 
-# .. Optimize over 1995-2001 ####
-# NO COVARIATES
-
+# .. Optimize over 1990-2001, 1990 baseline, no covariates ####
 
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
@@ -342,7 +403,7 @@ choose.time.predictors <- 1990:2001
 
 dataprep.out <-
   dataprep(foo = data,
-           predictors =NULL,
+           predictors = NULL,
            predictors.op = NULL,
            time.predictors.prior = choose.time.predictors,
            special.predictors = list(
@@ -369,9 +430,120 @@ dataprep.out$Z1
 # Store specification details
 synth.spec <- dataprep.out
 
-############################
-# TRAJECTORY BALANCING     #
-############################
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 5        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1995-2001, difference in log levels ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1995:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
+                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
+                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
+                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
+                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
+                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
+                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
+                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
+                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
+                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
+                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
+                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
+                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
+                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
+           ),
+           predictors.op = "mean" ,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("logdiff" , choose.time.predictors , "mean")),
+           dependent = "logdiff",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- dataprep.out
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION TEST     ####
+## ## ## ## ## ## ## ## ## ##
+
+# Code here for throwaways
+# .. Optimize over 1980-2001, 1990 baseline, no covariates ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1980:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("rescaled1990", 1980:1981, "mean"),
+             list("rescaled1990", 1982:1983, "mean"),
+             list("rescaled1990", 1984:1985, "mean"),
+             list("rescaled1990", 1986:1987, "mean"),
+             list("rescaled1990", 1988:1989, "mean"),
+             list("rescaled1990", 1990:1991, "mean"),
+             list("rescaled1990", 1992:1993, "mean"),
+             list("rescaled1990", 1994:1995, "mean"),
+             list("rescaled1990", 1996:1997, "mean"),
+             list("rescaled1990", 1997:1998, "mean"),
+             list("rescaled1990", 1999:2000, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1980:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- dataprep.out
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# TRAJECTORY BALANCING   ####
+## ## ## ## ## ## ## ## ## ##
 
 devtools::install_github("chadhazlett/kbal")
 
@@ -438,10 +610,8 @@ uk.synthetic
 
 
 
-
-
 ## ## ## ## ## ## ## ## ## ##
-# SYNTH 1                ####
+# SYNTH                  ####
 ## ## ## ## ## ## ## ## ## ##
 
 # .. Running Synth ####
@@ -476,7 +646,8 @@ path.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions per capita",
           Xlab = "Year",
-          Ylim = c(0.9,1.1),
+          Ylim = c(0.9, 1.1),
+          #Ylim = range(dataprep.out$Y1plot, dataprep.out$Y0plot %*% synth.out$solution.w),
           Main = "Observed and Synthetic Counterfactual Emissions",
           Legend = c("United Kingdom","Synthetic UK"),
           Legend.position = "bottomright")
@@ -489,14 +660,14 @@ gaps.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions per capita",
           Xlab = "Year",
-          Ylim = c(-.1,0.1),
+          Ylim = range(gaps),
           Main = "Gap between Treated and Synthetic Control")
 abline(v = 2001, lty = 2)
 
 
 
 ## ## ## ## ## ## ## ## ## ##
-# GENERATE RESULTS 1     ####
+# GENERATE RESULTS       ####
 ## ## ## ## ## ## ## ## ## ##
 
 # .. Outcomes ####
@@ -851,7 +1022,7 @@ placebo.names[i] <- whodat(countries[i])
 }
 placebo.names
 
-store <- matrix(NA,length(1995:2005),20)
+store <- matrix(NA,length(1995:2005),length(countries))
 colnames(store) <- placebo.names
 store
 
@@ -979,7 +1150,7 @@ for (i in 1:length(leaveoneout.controls)){
 leaveoneout.names <- append(leaveoneout.names, "Dropped", length(leaveoneout.names))
 leaveoneout.names
 
-store <- matrix(NA,length(1995:2005),20)
+store <- matrix(NA,length(1995:2005),length(countries))
 colnames(store) <- paste("No_", leaveoneout.names, sep = "")
 store
 
@@ -1106,17 +1277,17 @@ for (i in 1:length(control.units)){
   print(whodat(control.units[i]))
 }
 
-placebo.years <- c(seq(1995, 2001))
+placebo.years <- c(seq(1980, 2001))
 
-store <- matrix(NA,length(1995:2005),3)
-colnames(store) <- paste("Tx_", c(seq(1999, 2001)), sep = "")
+store <- matrix(NA,length(1980:2005),length(seq(1985, 2001)))
+colnames(store) <- paste("Tx_", c(seq(1985, 2001)), sep = "")
 store
 
-# for (i in 8:6){
-#   years <- placebo.years[-c(8:i)]
-#   print(years)
-#   print(paste("store ", i-5))
-# }
+for (i in 8:6){
+  years <- placebo.years[-c(8:i)]
+  print(years)
+  print(paste("store ", i-5))
+}
 
 for (i in 8:6){
 dataprep.out <-
