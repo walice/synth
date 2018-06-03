@@ -727,6 +727,9 @@ for (i in 1:length(countries)){
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 leaveoneout.controls <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
 
+# Leave-one-out controls without AUT and CHE
+leaveoneout.controls <- t(unique(subset(data, !(countrycode %in% c("GBR", "AUT", "CHE")))[1]))
+
 leaveoneout.names <- NA
 for (i in 1:length(leaveoneout.controls)){
   leaveoneout.names[i] <- whodat(leaveoneout.controls[i])
@@ -735,6 +738,8 @@ leaveoneout.names <- append(leaveoneout.names, "Dropped", length(leaveoneout.nam
 leaveoneout.names
 
 store <- matrix(NA, length(1980:2005), length(countries))
+store <- matrix(NA, length(1980:2005), length(countries)-2)
+# For when AUT and CHE are dropped
 colnames(store) <- paste("No_", leaveoneout.names, sep = "")
 store
 
@@ -796,7 +801,7 @@ years <- c(choose.time.predictors, seq(2002, 2005, 1))
 gap.end.pre <- which(rownames(placebo.results)=="2001")
 
 # Plot
-pdf("../Figures/Gaps in emissions_leave one out.pdf", 
+pdf("../Figures/Gaps in emissions_leave one out_no AUT or CHE.pdf", 
     height = 4.5, width = 6)
 plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
 u <- par("usr") # The coordinates of the plot area
