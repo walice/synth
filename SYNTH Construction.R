@@ -20,7 +20,6 @@
 # .. Convert emissions per capita to tonnes and mega tonnes 
 # .. Recreating built-in Synth graph for paths 
 # .. Recreating built-in Synth graph for gaps 
-# .. Simple unformatted graphs 
 # Placebo for Single Country 
 # .. Running Synth 
 # .. Outcomes 
@@ -36,18 +35,15 @@
 # .. Leave-one-out figure 
 # Re-Assign Treatment Year
 # .. Running Synth
-# .. Calculating synthetic trends when treatment has been re-assigned to another year
-# .. Placebo year figure
-# Specification 1   
-# .. Optimize over 1995-2001, CO2 per capita
-# Specification 2
-# .. Optimize over 1990-2001, CO2 per capita, no covariates
-# Specification 3
-# .. Optimize over 1995-2001, 1990 baseline
-# Specification 4
-# .. Optimize over 1990-2001, 1990 baseline, no covariates
-# Specification 5
-# .. Optimize over 1995-2001, difference in log levels
+# .. Treatment in 2001
+# .. Treatment in 1999
+# .. Treatment in 1997
+# .. Treatment in 1995
+# .. Treatment in 1993
+# .. Treatment in 1991
+# .. Treatment in 1989
+# .. Treatment in 1987
+# .. Treatment in 1985
 # Trajectory Balancing
 
 
@@ -56,9 +52,9 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
-setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
-setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
+#setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
+#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
 library(dplyr)
 library(foreign) # Deprecated with newest R updated
@@ -611,7 +607,7 @@ placebo.names[i] <- whodat(countries[i])
 }
 placebo.names
 
-store <- matrix(NA,length(1980:2005),length(countries))
+store <- matrix(NA, length(1980:2005), length(countries))
 colnames(store) <- placebo.names
 store
 
@@ -703,6 +699,12 @@ for (i in 1:ncol(placebo.results)){
 }
 lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
       type = "l", col = "purple", lwd = 2)
+lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="CHE")],
+      type = "l", col = "deeppink")
+text(2003.5, -0.09, "CHE", cex = 0.8, col = "deeppink")
+lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="AUT")],
+      type = "l", col = "firebrick")
+text(2003.5, 0.09, "AUT", cex = 0.8, col = "firebrick")
 dev.off()
 
 
@@ -732,7 +734,7 @@ for (i in 1:length(leaveoneout.controls)){
 leaveoneout.names <- append(leaveoneout.names, "Dropped", length(leaveoneout.names))
 leaveoneout.names
 
-store <- matrix(NA,length(1980:2005),length(countries))
+store <- matrix(NA, length(1980:2005), length(countries))
 colnames(store) <- paste("No_", leaveoneout.names, sep = "")
 store
 
@@ -841,12 +843,6 @@ dev.off()
 # RE-ASSIGN TREATMENT YEAR  ####
 ## ## ## ## ## ## ## ## ## ## ##
 
-whodat(23) 
-# data <- subset(data, !(countrycode %in% c("LUX")))
-# Re-assign treatment to 1999 and 2000, because if re-assign Tx to
-# years before that, then have to drop LUX due to missing data,
-# which gives poor counterfactual trend.
-
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
 control.units
@@ -854,319 +850,24 @@ for (i in 1:length(control.units)){
   print(whodat(control.units[i]))
 }
 
-# placebo.years <- c(seq(1995, 2001))
-# 
-# store <- matrix(NA,length(1980:2005),length(seq(1999, 2001)))
-# colnames(store) <- paste("Tx_", c(seq(1999, 2001)), sep = "")
-# store
-# 
-# for (i in 8:6){
-#   years <- placebo.years[-c(8:i)]
-#   print(years)
-#   print(paste("store ", i-5))
-# }
+placebo.years <- c(seq(1985, 2001, 2))
 
-placebo.years <- c(seq(1980, 2001))
-
-store <- matrix(NA,length(1980:2005),length(seq(1985, 2001)))
-colnames(store) <- paste("Tx_", c(seq(1985, 2001)), sep = "")
+store <- matrix(NA, length(1980:2005), length(placebo.years))
+colnames(store) <- paste("Tx_", c(seq(1985, 2001, 2)), sep = "")
 store
 
-for (i in 23:7){
-  years <- placebo.years[-c(23:i)]
-  print(years)
-  print(paste("store ", i-6))
-}
 
-for (i in 8:6){
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
-                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
-                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
-                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
-                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
-                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
-                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
-                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
-                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
-                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
-                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
-                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
-                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
-                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
-           ),
-           predictors.op = "mean" ,
-           time.predictors.prior = placebo.years[-c(8:i)],
-           special.predictors = list(
-             list("CO2_emissions_PC" , placebo.years[-c(8:i)] , "mean")),
-           dependent = "CO2_emissions_PC",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = placebo.years[-c(8:i)],
-           time.plot = 1995:2005)
-
-
-# .. Running Synth ####
-synth.out <- synth(data.prep.obj = dataprep.out,
-                   method = "BFGS")
-
-
-# .. Calculating synthetic trends when treatment has been re-assigned to another year ####
-store[,i-5] <- dataprep.out$Y0plot %*% synth.out$solution.w
-}
-
-
-# .. Placebo year figure ####
-placeboyear.results <- store
-rownames(placeboyear.results) <- 1995:2005
-placeboyear.results
-
-years <- seq(1995,2005,1)
-# Pre- and post-intervention periods
-
-# Plot
-pdf("../Figures/Emissions paths in treated and synth_placebo year.pdf", 
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot, 
-     type = "l", col = "#872341", lwd = 2,
-     xlim = c(1995,2005), ylim = c(7,12), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-#lines(years, synth, col = "green", lty = 2, lwd = 2)
-abline(v = 2001, lty = 2)
-legend(1995, 12, 
-       c("United Kingdom", "Tx = 2001", "Tx = 2000",
-         "Tx = 1999"),
-       lty = c(1,2,2,2), lwd = c(2,2,1,1), 
-       col = c("#872341", "#BE3144", "#F05941", "#F47C7C"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(2000, 8, 2000.9, 8, length = 0.1, code = 2)
-text(1998.9, 8.04, "CCL enacted", cex = 0.8)
-cols <- c("#F47C7C", "#F05941", "#BE3144")
-ncols <- ncol(placeboyear.results)-1
-for (i in 1:ncols){
-  lines(years, placeboyear.results[, i], col = cols[i], lty = 2) 
-}
-lines(years, placeboyear.results[,"Tx_2001"],
-      type = "l", col = "#BE3144", lty = 2, lwd = 2)
-dev.off()
-
-
-
-#### Other specifications.
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 1        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1995-2001, CO2 per capita ####
-# Less covariates
-# Counterfactual looks better
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1995:2001
-
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
-                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
-                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
-                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
-                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
-                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
-                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
-                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
-                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
-                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
-                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
-                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
-                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
-                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
-           ),
-           predictors.op = "mean" ,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
-             list("CO2_emissions_PC" , choose.time.predictors , "mean")),
-           dependent = "CO2_emissions_PC",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
-
-# Predictor variables for the UK
-dataprep.out$X1
-
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
-
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification.txt")
-
-
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 2        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1990-2001, CO2 per capita, no covariates ####
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1990:2001
-
+# .. Treatment in 2001 ####
 dataprep.out <-
   dataprep(foo = data,
            predictors = NULL,
-           predictors.op = NULL,
            time.predictors.prior = choose.time.predictors,
            special.predictors = list(
-             list("CO2_emissions_PC", 1991:1992, "mean"),
-             list("CO2_emissions_PC", 1993:1994, "mean"),
-             list("CO2_emissions_PC", 1995:1996, "mean"),
-             list("CO2_emissions_PC", 1997:1998, "mean"),
-             list("CO2_emissions_PC", 1999:2000, "mean")),
-           dependent = "CO2_emissions_PC",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
-
-# Predictor variables for the UK
-dataprep.out$X1
-
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
-
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification.txt")
-
-
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 3        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1995-2001, 1990 baseline ####
-# Less covariates
-# Counterfactual looks better
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1995:2001
-
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
-                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
-                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
-                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
-                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
-                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
-                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
-                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
-                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
-                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
-                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
-                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
-                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
-                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
-           ),
-           predictors.op = "mean" ,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
-             list("rescaled1990" , choose.time.predictors , "mean")),
-           dependent = "rescaled1990",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
-
-# Predictor variables for the UK
-dataprep.out$X1
-
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
-
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification.txt")
-
-
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 4        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1990-2001, 1990 baseline, no covariates ####
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1990:2001
-
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean"),
+             list("rescaled1990", 1989:1990, "mean"),
              list("rescaled1990", 1991:1992, "mean"),
              list("rescaled1990", 1993:1994, "mean"),
              list("rescaled1990", 1995:1996, "mean"),
@@ -1179,146 +880,546 @@ dataprep.out <-
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
            time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
+           time.plot = 1980:2005)
 
-# Predictor variables for the UK
-dataprep.out$X1
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
 
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
-
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification.txt")
+store[,9] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 5        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1995-2001, difference in log levels ####
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1995:2001
-
+# .. Treatment in 1999 ####
 dataprep.out <-
   dataprep(foo = data,
-           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
-                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
-                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
-                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
-                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
-                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
-                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
-                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
-                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
-                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
-                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
-                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
-                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
-                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
-           ),
-           predictors.op = "mean" ,
-           time.predictors.prior = choose.time.predictors,
+           predictors = NULL,
+           time.predictors.prior = 1980:1999,
            special.predictors = list(
-             list("logdiff" , choose.time.predictors , "mean")),
-           dependent = "logdiff",
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean"),
+             list("rescaled1990", 1989:1990, "mean"),
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean"),
+             list("rescaled1990", 1995:1996, "mean"),
+             list("rescaled1990", 1997:1998, "mean")),
+           dependent = "rescaled1990",
            unit.variable = "countryid",
            unit.names.variable = "countryname",
            time.variable = "year",
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
+           time.optimize.ssr = 1980:1999,
+           time.plot = 1980:2005)
 
-# Predictor variables for the UK
-dataprep.out$X1
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
 
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
+store[,8] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification.txt")
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1999.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,8], col = "coral", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1999, lty = 2, col = "coral")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1997 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           time.predictors.prior = 1980:1997,
+           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean"),
+             list("rescaled1990", 1989:1990, "mean"),
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean"),
+             list("rescaled1990", 1995:1996, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1980:1997,
+           time.plot = 1980:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,7] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1997.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1997", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,7], col = "cornflowerblue", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1997, lty = 2, col = "cornflowerblue")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1995 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           time.predictors.prior = 1980:1995,
+           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean"),
+             list("rescaled1990", 1989:1990, "mean"),
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1980:1995,
+           time.plot = 1980:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,6] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1995.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1995", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,6], col = "darkgoldenrod1", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1995, lty = 2, col = "darkgoldenrod1")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1993 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           time.predictors.prior = 1980:1993,
+           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean"),
+             list("rescaled1990", 1989:1990, "mean"),
+             list("rescaled1990", 1991:1992, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1980:1993,
+           time.plot = 1980:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,5] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1993.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1993", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,5], col = "darkorchid", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1993, lty = 2, col = "darkorchid")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1991 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           time.predictors.prior = 1980:1991,
+           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean"),
+             list("rescaled1990", 1989:1990, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1980:1991,
+           time.plot = 1980:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,4] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1991.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1991", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,4], col = "mediumseagreen", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1991, lty = 2, col = "mediumseagreen")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1989 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           time.predictors.prior = 1980:1989,
+           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1980:1989,
+           time.plot = 1980:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,3] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1989.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1989", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,3], col = "darkturquoise", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1989, lty = 2, col = "darkturquoise")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1987 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           time.predictors.prior = 1980:1987,
+           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1980:1987,
+           time.plot = 1980:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,2] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1987.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1987", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,2], col = "darkviolet", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1987, lty = 2, col = "darkviolet")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1985 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           time.predictors.prior = 1980:1985,
+           special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1980:1985,
+           time.plot = 1980:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,1] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1985.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = c(1980,2005), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1985", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, placeboyear.results[,9], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, placeboyear.results[,1], col = "deeppink", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1985, lty = 2, col = "deeppink")
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
 
 
 
-#### All below is archived for now.
-
-# ## ## ## ## ## ## ## ## ## ##
-# # TRAJECTORY BALANCING   ####
-# ## ## ## ## ## ## ## ## ## ##
+# #### All below is archived for now.
 # 
-# devtools::install_github("chadhazlett/kbal")
-# 
-# library(KBAL)
-# 
-# data$GBR_treat <- 0
-# data$GBR_treat[which(data$countrycode=="GBR")] <- 1
-# 
-# dataCO2 <- data[,c(1,4:20)]
-# dataCO2.pretreat <- dataCO2[which(dataCO2$year < 2001),]
-# dataCO2.pretreat <- dataCO2.pretreat[which(dataCO2.pretreat$year > 1994),]
-# 
-# colnames(dataCO2.pretreat)
-# dataCO2.kbal <- dataCO2.pretreat[,which(names(dataCO2.pretreat)%in%c("countryid","year","GBR_treat", "CO2_emissions_PC"))]
-# 
-# c.ids <- levels(as.factor(dataCO2.kbal$countryid))
-# 
-# expand.data <- as.data.frame(c.ids)
-# expand.data$GBR_treat <- 0
-# 
-# ## The UK is Country ID # 14
-# 
-# expand.data$GBR_treat[which(expand.data$c.ids==14)] <- 1
-# 
-# for (j in 1995:2000){
-#   eval(parse(text=paste0("expand.data$CO2.pc.",j," <- NA")))
-# }
-# 
-# for(i in 1:length(c.ids)){
-#   for(j in 1995:2000){
-#     eval(parse(text=paste0("expand.data$CO2.pc.",j,"[i] <- dataCO2.kbal$CO2_emissions_PC[dataCO2.kbal$year==j][i]")))
-#   }
-# }
-# 
-# write.csv(expand.data, file="matto_data.Rda")
-# 
-# treatment.vector <- expand.data$GBR_treat
-# data.matrix <- expand.data[,-which(names(expand.data)%in%c("GBR_treat", "c.ids"))]
-# data.matrix <- as.matrix(data.matrix)
-# kbal.out <- kbal(method="el",X=data.matrix, D=treatment.vector, sigma=ncol(data.matrix))
-# 
-# #kbal.out=kbal(method="el",X=Ypre, D=D, sigma=ncol(Ypre))
-# 
-# #Where Ypre is a matrix whose rows are observations and columns are Y, all for pre-treatment era.   
-# #Sigma is up to you. If it's a really hard problem you may need a higher Sigma.
-# #But a good starting point is to set it to the number of pre-treatment time periods (i.e. ncol(Ypre), which I've put above), but you can try a bunch. 
-# #What we typically do is choose the sigma that maximizes:#  kbal.out$L1_orig/kbal.out$L1_kbal
-# 
-# #kbal.w0=kbal.out$w[D==0]
-# #kbal.w0=kbal.w0/sum(kbal.w0)
-# 
-# kbal.w0=kbal.out$w[expand.data$GBR_treat==0]
-# kbal.w0=kbal.w0/sum(kbal.w0)
-# 
-# uk.actual <- expand.data[expand.data$GBR_treat==1,]
-# 
-# synth.uk.temp <- expand.data[expand.data$GBR_treat==0,-which(names(expand.data)%in%c("c.ids"))] * kbal.w0
-# uk.synthetic <- colSums(synth.uk.temp)
-# 
-# uk.actual
-# uk.synthetic
+# # ## ## ## ## ## ## ## ## ## ##
+# # # TRAJECTORY BALANCING   ####
+# # ## ## ## ## ## ## ## ## ## ##
+# # 
+# # devtools::install_github("chadhazlett/kbal")
+# # 
+# # library(KBAL)
+# # 
+# # data$GBR_treat <- 0
+# # data$GBR_treat[which(data$countrycode=="GBR")] <- 1
+# # 
+# # dataCO2 <- data[,c(1,4:20)]
+# # dataCO2.pretreat <- dataCO2[which(dataCO2$year < 2001),]
+# # dataCO2.pretreat <- dataCO2.pretreat[which(dataCO2.pretreat$year > 1994),]
+# # 
+# # colnames(dataCO2.pretreat)
+# # dataCO2.kbal <- dataCO2.pretreat[,which(names(dataCO2.pretreat)%in%c("countryid","year","GBR_treat", "CO2_emissions_PC"))]
+# # 
+# # c.ids <- levels(as.factor(dataCO2.kbal$countryid))
+# # 
+# # expand.data <- as.data.frame(c.ids)
+# # expand.data$GBR_treat <- 0
+# # 
+# # ## The UK is Country ID # 14
+# # 
+# # expand.data$GBR_treat[which(expand.data$c.ids==14)] <- 1
+# # 
+# # for (j in 1995:2000){
+# #   eval(parse(text=paste0("expand.data$CO2.pc.",j," <- NA")))
+# # }
+# # 
+# # for(i in 1:length(c.ids)){
+# #   for(j in 1995:2000){
+# #     eval(parse(text=paste0("expand.data$CO2.pc.",j,"[i] <- dataCO2.kbal$CO2_emissions_PC[dataCO2.kbal$year==j][i]")))
+# #   }
+# # }
+# # 
+# # write.csv(expand.data, file="matto_data.Rda")
+# # 
+# # treatment.vector <- expand.data$GBR_treat
+# # data.matrix <- expand.data[,-which(names(expand.data)%in%c("GBR_treat", "c.ids"))]
+# # data.matrix <- as.matrix(data.matrix)
+# # kbal.out <- kbal(method="el",X=data.matrix, D=treatment.vector, sigma=ncol(data.matrix))
+# # 
+# # #kbal.out=kbal(method="el",X=Ypre, D=D, sigma=ncol(Ypre))
+# # 
+# # #Where Ypre is a matrix whose rows are observations and columns are Y, all for pre-treatment era.   
+# # #Sigma is up to you. If it's a really hard problem you may need a higher Sigma.
+# # #But a good starting point is to set it to the number of pre-treatment time periods (i.e. ncol(Ypre), which I've put above), but you can try a bunch. 
+# # #What we typically do is choose the sigma that maximizes:#  kbal.out$L1_orig/kbal.out$L1_kbal
+# # 
+# # #kbal.w0=kbal.out$w[D==0]
+# # #kbal.w0=kbal.w0/sum(kbal.w0)
+# # 
+# # kbal.w0=kbal.out$w[expand.data$GBR_treat==0]
+# # kbal.w0=kbal.w0/sum(kbal.w0)
+# # 
+# # uk.actual <- expand.data[expand.data$GBR_treat==1,]
+# # 
+# # synth.uk.temp <- expand.data[expand.data$GBR_treat==0,-which(names(expand.data)%in%c("c.ids"))] * kbal.w0
+# # uk.synthetic <- colSums(synth.uk.temp)
+# # 
+# # uk.actual
+# # uk.synthetic
