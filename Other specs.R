@@ -7,16 +7,34 @@
 # Preamble
 # Functions
 # Data
-# Specification 1   
-# .. Optimize over 1995-2001, CO2 per capita
-# Specification 2
-# .. Optimize over 1990-2001, CO2 per capita, no covariates
-# Specification 3
-# .. Optimize over 1995-2001, 1990 baseline
-# Specification 4
+# Specification 1
 # .. Optimize over 1990-2001, 1990 baseline, no covariates
-# Specification 5
-# .. Optimize over 1995-2001, difference in log levels
+# .. Running Synth
+# .. Export results
+# Specification 2
+# .. Optimize over 1990-2001, 1990 baseline, with covariates
+# .. Running Synth
+# .. Export results
+# Specification 3
+# .. Optimize over 1990-2001, CO2 per capita, no covariates
+# .. Running Synth
+# .. Export results
+# Specification 4
+# .. Optimize over 1990-2001, CO2 per capita, with covariates
+# .. Running Synth
+# .. Export results
+# Specification 5   
+# .. Optimize over 1995-2001, CO2 per capita, no covariates
+# .. Running Synth
+# .. Export results
+# Specification 6   
+# .. Optimize over 1995-2001, CO2 per capita, with covariates
+# .. Running Synth
+# .. Export results
+# Specification 7
+# .. Optimize over 1990-2001, difference in log levels, with covariates
+# .. Running Synth
+# .. Export results
 
 
 
@@ -146,9 +164,350 @@ whichnum("LUX") # Pre-treatment trend is bonkers. If removed, optimization over 
 # SPECIFICATION 1        ####
 ## ## ## ## ## ## ## ## ## ##
 
-# .. Optimize over 1995-2001, CO2 per capita ####
-# Less covariates
-# Counterfactual looks better
+# .. Optimize over 1990-2001, 1990 baseline, no covariates ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1990:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean"),
+             list("rescaled1990", 1995:1996, "mean"),
+             list("rescaled1990", 1997:1998, "mean"),
+             list("rescaled1990", 1999:2000, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
+                   donor.pool = dataprep.out$tag[["controls.identifier"]],
+                   predictors = rownames(dataprep.out$X1),
+                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
+capture.output(synth.spec, file = "Specification 1.txt")
+
+
+# .. Running Synth ####
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+# Housekeping
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out)
+
+
+# .. Export results ####
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results Specification 1.txt")
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 2        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1990-2001, 1990 baseline, with covariates ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1990:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
+                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
+                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
+                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
+                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
+                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
+                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
+                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
+                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
+                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
+                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
+                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
+                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
+                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
+           ),
+           predictors.op = "mean" ,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("rescaled1990" , choose.time.predictors , "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
+                   donor.pool = dataprep.out$tag[["controls.identifier"]],
+                   predictors = rownames(dataprep.out$X1),
+                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
+capture.output(synth.spec, file = "Specification 2.txt")
+
+
+# .. Running Synth ####
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+# Housekeping
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out)
+
+
+# .. Export results ####
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results Specification 2.txt")
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 3        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1990-2001, CO2 per capita, no covariates ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1990:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("CO2_emissions_PC", 1991:1992, "mean"),
+             list("CO2_emissions_PC", 1993:1994, "mean"),
+             list("CO2_emissions_PC", 1995:1996, "mean"),
+             list("CO2_emissions_PC", 1997:1998, "mean"),
+             list("CO2_emissions_PC", 1999:2000, "mean")),
+           dependent = "CO2_emissions_PC",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
+                   donor.pool = dataprep.out$tag[["controls.identifier"]],
+                   predictors = rownames(dataprep.out$X1),
+                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
+capture.output(synth.spec, file = "Specification 3.txt")
+
+
+# .. Running Synth ####
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+# Housekeping
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out)
+
+
+# .. Export results ####
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results Specification 3.txt")
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 4        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1990-2001, CO2 per capita, with covariates ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1990:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
+                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
+                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
+                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
+                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
+                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
+                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
+                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
+                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
+                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
+                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
+                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
+                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
+                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
+           ),
+           predictors.op = "mean" ,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("CO2_emissions_PC" , choose.time.predictors , "mean")),
+           dependent = "CO2_emissions_PC",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
+                   donor.pool = dataprep.out$tag[["controls.identifier"]],
+                   predictors = rownames(dataprep.out$X1),
+                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
+capture.output(synth.spec, file = "Specification 4.txt")
+
+
+# .. Running Synth ####
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+# Housekeping
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out)
+
+
+# .. Export results ####
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results Specification 4.txt")
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 5        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1995-2001, CO2 per capita, no covariates ####
+
+treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
+control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
+control.units
+for (i in 1:length(control.units)){
+  print(whodat(control.units[i]))
+}
+
+choose.time.predictors <- 1995:2001
+
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("CO2_emissions_PC", 1995:1996, "mean"),
+             list("CO2_emissions_PC", 1997:1998, "mean"),
+             list("CO2_emissions_PC", 1999:2000, "mean")),
+           dependent = "CO2_emissions_PC",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1995:2005)
+
+# Predictor variables for the UK
+dataprep.out$X1
+
+# Pre-intervention outcomes in the UK
+dataprep.out$Z1
+
+# Store specification details
+synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
+                   donor.pool = dataprep.out$tag[["controls.identifier"]],
+                   predictors = rownames(dataprep.out$X1),
+                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
+capture.output(synth.spec, file = "Specification 5.txt")
+
+
+# .. Running Synth ####
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+# Housekeping
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out)
+
+
+# .. Export results ####
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results Specification 5.txt")
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 6        ####
+## ## ## ## ## ## ## ## ## ##
+
+# .. Optimize over 1995-2001, CO2 per capita, with covariates ####
 
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
@@ -200,15 +559,30 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 1.txt")
+capture.output(synth.spec, file = "Specification 6.txt")
+
+
+# .. Running Synth ####
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+# Housekeping
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out)
+
+
+# .. Export results ####
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results Specification 6.txt")
 
 
 
 ## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 2        ####
+# SPECIFICATION 7        ####
 ## ## ## ## ## ## ## ## ## ##
 
-# .. Optimize over 1990-2001, CO2 per capita, no covariates ####
+# .. Optimize over 1990-2001, difference in log levels, with covariates ####
 
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
@@ -218,168 +592,6 @@ for (i in 1:length(control.units)){
 }
 
 choose.time.predictors <- 1990:2001
-
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
-             list("CO2_emissions_PC", 1991:1992, "mean"),
-             list("CO2_emissions_PC", 1993:1994, "mean"),
-             list("CO2_emissions_PC", 1995:1996, "mean"),
-             list("CO2_emissions_PC", 1997:1998, "mean"),
-             list("CO2_emissions_PC", 1999:2000, "mean")),
-           dependent = "CO2_emissions_PC",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
-
-# Predictor variables for the UK
-dataprep.out$X1
-
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
-
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 2.txt")
-
-
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 3        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1995-2001, 1990 baseline ####
-# Less covariates
-# Counterfactual looks better
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1995:2001
-
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = c("ny_gdp_pcap_kd", #GDP per capita (constant 2010 US$)
-                          "eg_imp_cons_zs", #Energy imports, net (% of energy use)
-                          "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
-                          "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
-                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
-                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
-                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
-                          #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
-                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
-                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
-                          "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
-                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
-                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
-                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
-           ),
-           predictors.op = "mean" ,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
-             list("rescaled1990" , choose.time.predictors , "mean")),
-           dependent = "rescaled1990",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
-
-# Predictor variables for the UK
-dataprep.out$X1
-
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
-
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 3.txt")
-
-
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 4        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1990-2001, 1990 baseline, no covariates ####
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1990:2001
-
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
-             list("rescaled1990", 1991:1992, "mean"),
-             list("rescaled1990", 1993:1994, "mean"),
-             list("rescaled1990", 1995:1996, "mean"),
-             list("rescaled1990", 1997:1998, "mean"),
-             list("rescaled1990", 1999:2000, "mean")),
-           dependent = "rescaled1990",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
-
-# Predictor variables for the UK
-dataprep.out$X1
-
-# Pre-intervention outcomes in the UK
-dataprep.out$Z1
-
-# Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
-                   predictors = rownames(dataprep.out$X1),
-                   time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 4.txt")
-
-
-
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 5        ####
-## ## ## ## ## ## ## ## ## ##
-
-# .. Optimize over 1995-2001, difference in log levels ####
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
-
-choose.time.predictors <- 1995:2001
 
 dataprep.out <-
   dataprep(foo = data,
@@ -422,4 +634,19 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 5.txt")
+capture.output(synth.spec, file = "Specification 7.txt")
+
+
+# .. Running Synth ####
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+# Housekeping
+synth.tables <- synth.tab(dataprep.res = dataprep.out,
+                          synth.res = synth.out)
+
+
+# .. Export results ####
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results Specification 7.txt")
