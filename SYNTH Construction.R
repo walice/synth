@@ -28,7 +28,8 @@
 # Placebo Loops
 # .. Running Synth 
 # .. Calculating annual gaps between the UK and its synthetic counterpart
-# .. Placebo figure 
+# .. Placebo figure
+# .. MSPE analysis
 # Leave-One-Out Check    
 # .. Running Synth 
 # .. Calculating annual gaps between the UK and its synthetic counterpart
@@ -705,6 +706,91 @@ text(2003.5, -0.09, "CHE", cex = 0.8, col = "deeppink")
 lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="AUT")],
       type = "l", col = "firebrick")
 text(2003.5, 0.09, "AUT", cex = 0.8, col = "firebrick")
+dev.off()
+
+# Exclude countries with 4 times higher MSPE than UK
+mse <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
+placebo.results[, mse > 4*UK.mse]
+# Exclude AUT, CHE, GRC, MEX
+placebo.results <- placebo.results[, mse < 4*UK.mse]
+
+# Plot, stricter MSPE cut-off
+pdf("../Figures/Gaps in emissions_placebo_all_MSPE4.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
+     type = "l", col = "purple", lwd = 2,
+     xlim = c(1980,2005), 
+     ylim = c(-0.1,0.1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(1999, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
+text(1996.5, -0.0695, "CCL enacted", cex = 0.8)
+for (i in 1:ncol(placebo.results)){
+  lines(years, placebo.results[gap.start:gap.end, i], col = "gray") 
+}
+lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
+      type = "l", col = "purple", lwd = 2)
+dev.off()
+
+# How many control states remain?
+colnames(placebo.results)
+# 6 control states: AUS, CAN, GBR, ITA, JPN, USA
+
+
+# .. MSPE analysis ####
+placebo.results <- store
+rownames(placebo.results) <- c(choose.time.predictors, seq(2002, 2005, 1))
+
+# Mean Square Prediction Error Pre-Treatment
+pre.mse <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
+UK.pre.mse <- as.numeric(pre.mse["GBR"])
+
+# Mean Square Prediction Error Post-Treatment
+gap.end.post <- which(rownames(placebo.results)=="2002")
+post.mse <- apply(placebo.results[gap.end.post:gap.end, ]^2, 2, mean)
+UK.post.mse <- as.numeric(post.mse["GBR"])
+
+# Ratio of post-treatment MSPE to pre-treatment MSPE
+ratio.mse <- post.mse/pre.mse
+sort(ratio.mse)
+# For the UK, the post-treatment gap is 20 times larger than
+# the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 5/25 = 0.2
+
+# Plot
+pdf("../Figures/MSPE Ratio.pdf", 
+    height = 4.5, width = 6)
+cols <- ifelse(names(sort(ratio.mse)) == "GBR", "purple", "grey")
+a <- barplot(sort(ratio.mse),
+        xaxt = "n",
+        yaxt = "n",
+        col = cols,
+        main = "Ratio of post-treatment MSPE to pre-treatment MSPE",
+        cex.main = 0.9)
+labs <- names(sort(ratio.mse))
+lab.cols <- ifelse(names(sort(ratio.mse)) == "GBR", "purple", "black")
+text(a[,1], y = -2, 
+     labels = labs, xpd = TRUE, srt = 60, adj = 1, cex = 0.7,
+     col = lab.cols)
+axis(side = 2, cex.axis = 0.8, lwd.ticks = 1, tck = -0.01, 
+     mgp = c(3, 0.5, 0), las = 2)
 dev.off()
 
 

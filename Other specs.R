@@ -11,30 +11,37 @@
 # .. Optimize over 1990-2001, 1990 baseline, no covariates
 # .. Running Synth
 # .. Export results
+# .. Generate results
 # Specification 2
 # .. Optimize over 1990-2001, 1990 baseline, with covariates
 # .. Running Synth
 # .. Export results
+# .. Generate results
 # Specification 3
 # .. Optimize over 1990-2001, CO2 per capita, no covariates
 # .. Running Synth
 # .. Export results
+# .. Generate results
 # Specification 4
 # .. Optimize over 1990-2001, CO2 per capita, with covariates
 # .. Running Synth
 # .. Export results
+# .. Generate results
 # Specification 5   
 # .. Optimize over 1995-2001, CO2 per capita, no covariates
 # .. Running Synth
 # .. Export results
+# .. Generate results
 # Specification 6   
 # .. Optimize over 1995-2001, CO2 per capita, with covariates
 # .. Running Synth
 # .. Export results
+# .. Generate results
 # Specification 7
 # .. Optimize over 1990-2001, difference in log levels, with covariates
 # .. Running Synth
 # .. Export results
+# .. Generate results
 
 
 
@@ -193,7 +200,7 @@ dataprep.out <-
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
            time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
+           time.plot = 1990:2005)
 
 # Predictor variables for the UK
 dataprep.out$X1
@@ -206,7 +213,7 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 1.txt")
+capture.output(synth.spec, file = "Supplementary Information/Specification 1.txt")
 
 
 # .. Running Synth ####
@@ -221,7 +228,48 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification 1.txt")
+capture.output(results, file = "Supplementary Information/Results Specification 1.txt")
+
+
+# .. Generate results ####
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+# Pre- and post-intervention periods
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
+
+
+# .. Recreating built-in Synth graph for paths ####
+pdf("../Figures/SI/Emissions paths in treated and synth_Spec 1.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot, 
+     type = "l", col = "royalblue4", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
+abline(v = 2001, lty = 2)
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
 
 
 
@@ -268,7 +316,7 @@ dataprep.out <-
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
            time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
+           time.plot = 1990:2005)
 
 # Predictor variables for the UK
 dataprep.out$X1
@@ -281,7 +329,7 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 2.txt")
+capture.output(synth.spec, file = "Supplementary Information/Specification 2.txt")
 
 
 # .. Running Synth ####
@@ -296,7 +344,18 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification 2.txt")
+capture.output(results, file = "Supplementary Information/Results Specification 2.txt")
+
+
+# .. Generate results ####
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+# Pre- and post-intervention periods
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
 
 
 
@@ -333,7 +392,7 @@ dataprep.out <-
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
            time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
+           time.plot = 1990:2005)
 
 # Predictor variables for the UK
 dataprep.out$X1
@@ -346,7 +405,7 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 3.txt")
+capture.output(synth.spec, file = "Supplementary Information/Specification 3.txt")
 
 
 # .. Running Synth ####
@@ -361,7 +420,18 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification 3.txt")
+capture.output(results, file = "Supplementary Information/Results Specification 3.txt")
+
+
+# .. Generate results ####
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+# Pre- and post-intervention periods
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
 
 
 
@@ -408,7 +478,7 @@ dataprep.out <-
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
            time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
+           time.plot = 1990:2005)
 
 # Predictor variables for the UK
 dataprep.out$X1
@@ -421,7 +491,7 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 4.txt")
+capture.output(synth.spec, file = "Supplementary Information/Specification 4.txt")
 
 
 # .. Running Synth ####
@@ -436,7 +506,18 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification 4.txt")
+capture.output(results, file = "Supplementary Information/Results Specification 4.txt")
+
+
+# .. Generate results ####
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+# Pre- and post-intervention periods
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
 
 
 
@@ -484,7 +565,7 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 5.txt")
+capture.output(synth.spec, file = "Supplementary Information/Specification 5.txt")
 
 
 # .. Running Synth ####
@@ -499,7 +580,18 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification 5.txt")
+capture.output(results, file = "Supplementary Information/Results Specification 5.txt")
+
+
+# .. Generate results ####
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+# Pre- and post-intervention periods
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
 
 
 
@@ -559,7 +651,7 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 6.txt")
+capture.output(synth.spec, file = "Supplementary Information/Specification 6.txt")
 
 
 # .. Running Synth ####
@@ -574,7 +666,18 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification 6.txt")
+capture.output(results, file = "Supplementary Information/Results Specification 6.txt")
+
+
+# .. Generate results ####
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+# Pre- and post-intervention periods
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
 
 
 
@@ -621,7 +724,7 @@ dataprep.out <-
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
            time.optimize.ssr = choose.time.predictors,
-           time.plot = 1995:2005)
+           time.plot = 1990:2005)
 
 # Predictor variables for the UK
 dataprep.out$X1
@@ -634,7 +737,7 @@ synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
                    donor.pool = dataprep.out$tag[["controls.identifier"]],
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification 7.txt")
+capture.output(synth.spec, file = "Supplementary Information/Specification 7.txt")
 
 
 # .. Running Synth ####
@@ -649,4 +752,15 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification 7.txt")
+capture.output(results, file = "Supplementary Information/Results Specification 7.txt")
+
+
+# .. Generate results ####
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+# Pre- and post-intervention periods
+
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+# Outcome variable in synthetic unit
+
+gaps <- dataprep.out$Y1plot - synth
+# Gaps between outcomes in treated and synthetic control
