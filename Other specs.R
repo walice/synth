@@ -8,7 +8,7 @@
 # Functions
 # Data
 # Specification 1
-# .. Optimize over 1990-2001, 1990 baseline, no covariates
+# .. Optimize over 1980-2001, 1990 baseline, no covariates
 # .. Running Synth
 # .. Export results
 # .. Generate results
@@ -217,7 +217,7 @@ for (i in 1:length(control.units)){
   print(whodat(control.units[i]))
 }
 
-choose.time.predictors <- 1990:2001
+choose.time.predictors <- 1980:2001
 
 dataprep.out <-
   dataprep(foo = data,
@@ -225,6 +225,11 @@ dataprep.out <-
            predictors.op = NULL,
            time.predictors.prior = choose.time.predictors,
            special.predictors = list(
+             list("rescaled1990", 1981:1982, "mean"),
+             list("rescaled1990", 1983:1984, "mean"),
+             list("rescaled1990", 1985:1986, "mean"),
+             list("rescaled1990", 1987:1988, "mean"),
+             list("rescaled1990", 1989:1990, "mean"),
              list("rescaled1990", 1991:1992, "mean"),
              list("rescaled1990", 1993:1994, "mean"),
              list("rescaled1990", 1995:1996, "mean"),
@@ -237,7 +242,7 @@ dataprep.out <-
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
            time.optimize.ssr = choose.time.predictors,
-           time.plot = 1990:2005)
+           time.plot = 1980:2005)
 
 # Predictor variables for the UK
 dataprep.out$X1
@@ -301,11 +306,11 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
 abline(v = 2001, lty = 2)
-legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+legend(1980, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1996.5, 0.9307, "CCL enacted", cex = 0.8)
 dev.off()
 
 
@@ -325,7 +330,7 @@ for (i in 1:length(countries)){
 }
 placebo.names
 
-store <- matrix(NA, length(1990:2005), length(countries))
+store <- matrix(NA, length(1980:2005), length(countries))
 colnames(store) <- placebo.names
 store
 
@@ -336,6 +341,11 @@ for (i in 1:length(placebos)){
              predictors.op = NULL,
              time.predictors.prior = choose.time.predictors,
              special.predictors = list(
+               list("rescaled1990", 1981:1982, "mean"),
+               list("rescaled1990", 1983:1984, "mean"),
+               list("rescaled1990", 1985:1986, "mean"),
+               list("rescaled1990", 1987:1988, "mean"),
+               list("rescaled1990", 1989:1990, "mean"),
                list("rescaled1990", 1991:1992, "mean"),
                list("rescaled1990", 1993:1994, "mean"),
                list("rescaled1990", 1995:1996, "mean"),
@@ -348,7 +358,7 @@ for (i in 1:length(placebos)){
              treatment.identifier = placebos[i],
              controls.identifier = placebos[-i],
              time.optimize.ssr = choose.time.predictors,
-             time.plot = 1990:2005)
+             time.plot = 1980:2005)
   
   
   # .. Running Synth ####
@@ -378,7 +388,7 @@ UK.mse <- as.numeric(mse["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 placebo.results[, mse > 5*UK.mse]
-# Exclude AUT, BEL, CHE, CHL, ESP, FIN, FRA, GRC, HUN, IRL, ISL, ISR, KOR, LUX, MEX, NZL, POL, PRT, TUR
+# Exclude BEL, CHL, ESP, FIN, FRA, HUN, IRL, ISL, ISR, KOR, LUX, NZL, POL, PRT, TUR
 placebo.results <- placebo.results[, mse < 5*UK.mse]
 
 # Plot
@@ -391,7 +401,7 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
      type = "l", col = "purple", lwd = 2,
-     xlim = c(1990,2005), 
+     xlim = c(1980,2005), 
      ylim = c(-0.1,0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
@@ -405,8 +415,8 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
-arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
-text(1998, -0.0695, "CCL enacted", cex = 0.8)
+arrows(1999, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
+text(1996.5, -0.0695, "CCL enacted", cex = 0.8)
 for (i in 1:ncol(placebo.results)){
   lines(years, placebo.results[gap.start:gap.end, i], col = "gray") 
 }
@@ -431,11 +441,11 @@ UK.post.mse <- as.numeric(post.mse["GBR"])
 # Ratio of post-treatment MSPE to pre-treatment MSPE
 ratio.mse <- post.mse/pre.mse
 sort(ratio.mse)
-# For the UK, the post-treatment gap is 100 times larger than
+# For the UK, the post-treatment gap is 20 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 1/25 = 0.04
+# 5/25 = 0.2
 
 # Plot
 pdf("../Figures/SI/MSPE Ratio_Spec 1.pdf", 
