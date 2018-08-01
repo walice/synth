@@ -7,7 +7,7 @@
 # Preamble
 # Functions
 # Data
-# Specification Working
+# Specification in Paper
 # .. Optimize over 1990-2001, 1990 baseline, no covariates
 # Synth
 # .. Running Synth 
@@ -48,9 +48,9 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
+#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
 #setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
+setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
 library(dplyr)
 library(foreign) # Deprecated with newest R updated
@@ -213,7 +213,7 @@ ggplot(data[which(!data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data
 
 
 ## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION WORKING  ####
+# SPECIFICATION IN PAPER ####
 ## ## ## ## ## ## ## ## ## ##
 
 # .. Optimize over 1990-2001, 1990 baseline, no covariates ####
@@ -341,27 +341,6 @@ gaps <- dataprep.out$Y1plot - synth
 # Gaps between outcomes in treated and synthetic control
 
 
-# # .. Convert emissions per capita to tonnes and mega tonnes ####
-# result <- data.frame(year = years, gaps = gaps)
-# colnames(result) <- c("year", "gapPerCap")
-# 
-# sum(result[7:11,2])
-# # Sum of gaps in CO2 per capita emissions between the UK and its synthetic counterpart,
-# # for 2001-2005. This is a work-around, I will implement a numerical integration method
-# # to get the area between the curves.
-# 
-# population <- read.csv("population.csv", header = T)
-# population <- population[which(population$ISO == "GBR"),]
-# population$population <- population$population*10^3
-# 
-# result <- merge(result, population, by.x = "year", by.y = "year")
-# result$gaptCO2 <- result$gapPerCap * result$population
-# result$gapMtCO2 <- result$gaptCO2 / 10^6
-# (postCCL.avoidedPerCap <- sum(result$gapPerCap[7:11]))
-# (postCCL.avoidedMtCO2 <- sum(result$gapMtCO2[7:11]))
-# result <- result[-3]
-
-
 # .. Recreating built-in Synth graph for paths ####
 pdf("../Figures/Emissions paths in treated and synth.pdf", 
     height = 4.5, width = 6)
@@ -401,8 +380,8 @@ rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, gaps, 
-     type = "l", col = "purple", lwd = 2,
-     xlim = c(1990,2005), 
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
      ylim = c(-0.1,0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
@@ -420,22 +399,16 @@ text(1998, -0.0695, "CCL enacted", cex = 0.8)
 dev.off()
 
 
-# Back of the enveloppe comparison with Cambridge Econometrics result
-# 2002 emissions in reference case scenario are 154 MtC
-154*44/12 * 10^6 / population$population[population$year == 2002]
-# Synth value is 9.61 in 2002
-
-
 
 ## ## ## ## ## ## ## ## ## ## ## ##
 # PLACEBO FOR SINGLE COUNTRY   ####
 ## ## ## ## ## ## ## ## ## ## ## ##
 
 # Placebo test for a single country
-# Mexico is the placebo (only passed carbon tax in 2013)
+# Australia is the placebo (only passed carbon tax in 2011)
 
-placebo.unit <- data[which(data$countrycode == "MEX"), 1][1]
-placebocontrol.units <- t(unique(subset(data, !(countrycode %in% c("MEX", "GBR")))[1]))
+placebo.unit <- data[which(data$countrycode == "AUS"), 1][1]
+placebocontrol.units <- t(unique(subset(data, !(countrycode %in% c("AUS", "GBR")))[1]))
 for (i in 1:length(placebocontrol.units)){
   print(whodat(placebocontrol.units[i]))
 }
@@ -476,7 +449,7 @@ path.plot(synth.res = synth.out,
           #Ylim = c(0.6,1.6),
           #Ylim = range(dataprep.out$Y1plot, dataprep.out$Y0plot %*% synth.out$solution.w),
           Main = "Placebo Test - Synthetic Counterfactual",
-          Legend = c("Mexico","Synthetic Mexico"),
+          Legend = c("Australia","Synthetic Australia"),
           Legend.position = "bottomright")
 abline(v = 2001)
 
@@ -519,7 +492,7 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot, 
      type = "l", col = "#014421", lwd = 2,
-     xlim = c(1990,2005), ylim = c(0.6,1.6), 
+     xlim = range(years), ylim = c(0.6,1.6), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -531,7 +504,7 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 lines(years, synth, col = "#11904E", lty = 2, lwd = 2)
 abline(v = 2001, lty = 2)
-legend(1990, 0.8, c("Mexico", "Synthetic Mexico"),
+legend(1990, 0.8, c("Australia", "Synthetic Australia"),
        lty = c(1,2), lwd = c(2,2), col = c("#014421", "#11904E"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.75, 2000.9, 0.75, length = 0.1, code = 2)
@@ -548,8 +521,8 @@ rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, gaps, 
-     type = "l", col = "purple", lwd = 2,
-     xlim = c(1990,2005), 
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
      ylim = c(-0.1,0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
@@ -564,6 +537,8 @@ abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
 text(1998, -0.0695, "CCL enacted", cex = 0.8)
+lines(years, gaps,
+      type = "l", col = "darkorchid", lwd = 2)
 dev.off()
 
 
@@ -658,8 +633,8 @@ rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
-     type = "l", col = "purple", lwd = 2,
-     xlim = c(1990,2005), 
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
      ylim = c(-0.1,0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
@@ -679,7 +654,7 @@ for (i in 1:ncol(placebo.results)){
   lines(years, placebo.results[gap.start:gap.end, i], col = "gray") 
 }
 lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
-      type = "l", col = "purple", lwd = 2)
+      type = "l", col = "darkorchid", lwd = 2)
 dev.off()
 
 # How many control states remain?
@@ -712,7 +687,7 @@ sort(ratio.mse)
 # Plot
 pdf("../Figures/MSPE Ratio.pdf", 
     height = 4.5, width = 6)
-cols <- ifelse(names(sort(ratio.mse)) == "GBR", "purple", "grey")
+cols <- ifelse(names(sort(ratio.mse)) == "GBR", "darkorchid", "grey")
 a <- barplot(sort(ratio.mse),
         xaxt = "n",
         yaxt = "n",
@@ -720,7 +695,7 @@ a <- barplot(sort(ratio.mse),
         main = "Ratio of post-treatment MSPE to pre-treatment MSPE",
         cex.main = 0.9)
 labs <- names(sort(ratio.mse))
-lab.cols <- ifelse(names(sort(ratio.mse)) == "GBR", "purple", "black")
+lab.cols <- ifelse(names(sort(ratio.mse)) == "GBR", "darkorchid", "black")
 text(a[,1], y = -2, 
      labels = labs, xpd = TRUE, srt = 60, adj = 1, cex = 0.7,
      col = lab.cols)
@@ -748,9 +723,6 @@ for (i in 1:length(countries)){
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 leaveoneout.controls <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
 
-# # Leave-one-out controls without AUT and CHE
-# leaveoneout.controls <- t(unique(subset(data, !(countrycode %in% c("GBR", "AUT", "CHE")))[1]))
-
 leaveoneout.names <- NA
 for (i in 1:length(leaveoneout.controls)){
   leaveoneout.names[i] <- whodat(leaveoneout.controls[i])
@@ -759,8 +731,6 @@ leaveoneout.names <- append(leaveoneout.names, "Dropped", length(leaveoneout.nam
 leaveoneout.names
 
 store <- matrix(NA, length(1990:2005), length(countries))
-# store <- matrix(NA, length(1980:2005), length(countries)-2)
-# For when AUT and CHE are dropped
 colnames(store) <- paste("No_", leaveoneout.names, sep = "")
 store
 
@@ -779,6 +749,7 @@ for (i in 1:nloops){
   dataprep.out <-
     dataprep(foo = data,
              predictors = NULL,
+             predictors.op = NULL,
              time.predictors.prior = choose.time.predictors,
              special.predictors = list(
                list("rescaled1990", 1991:1992, "mean"),
@@ -826,8 +797,8 @@ rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, leaveoneout.results[gap.start:gap.end, which(colnames(leaveoneout.results)=="No_Dropped")],
-     type = "l", col = "purple", lwd = 2,
-     xlim = c(1990,2005), 
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
      ylim = c(-0.1,0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
@@ -844,13 +815,13 @@ abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
 text(1998, -0.0695, "CCL enacted", cex = 0.8)
 for (i in 1:ncol(leaveoneout.results)){
-  lines(years, leaveoneout.results[gap.start:gap.end, i], col = "gray") 
+  lines(years, leaveoneout.results[gap.start:gap.end, i], col = "thistle") 
 }
 lines(years, leaveoneout.results[gap.start:gap.end, which(colnames(leaveoneout.results)=="No_Dropped")],
-      type = "l", col = "purple", lwd = 2)
+      type = "l", col = "darkorchid", lwd = 2)
 lines(years, leaveoneout.results[gap.start:gap.end, which(colnames(leaveoneout.results)=="No_LUX")],
       type = "l", col = "darkorange")
-text(2004.6, -0.017, "LUX", cex = 0.8, col = "darkorange")
+text(2004.1, -0.023, "No LUX", cex = 0.8, col = "darkorange")
 dev.off()
 
 
@@ -866,10 +837,10 @@ for (i in 1:length(control.units)){
   print(whodat(control.units[i]))
 }
 
-placebo.years <- c(seq(1995, 2001, 2))
+placebo.years <- c(seq(1991, 2001))
 
 store <- matrix(NA, length(1990:2005), length(placebo.years))
-colnames(store) <- paste("Tx_", c(seq(1995, 2001, 2)), sep = "")
+colnames(store) <- paste("Tx_", c(seq(1991, 2001)), sep = "")
 store
 
 
@@ -877,6 +848,7 @@ store
 dataprep.out <-
   dataprep(foo = data,
            predictors = NULL,
+           predictors.op = NULL,
            time.predictors.prior = choose.time.predictors,
            special.predictors = list(
              list("rescaled1990", 1991:1992, "mean"),
@@ -896,13 +868,73 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,4] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store[,11] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+
+# .. Treatment in 2000 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = 1990:2000,
+           special.predictors = list(
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean"),
+             list("rescaled1990", 1995:1996, "mean"),
+             list("rescaled1990", 1997:1998, "mean"),
+             list("rescaled1990", 1998:1999, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1990:2000,
+           time.plot = 1990:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,10] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 2000.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,10], col = "coral", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 2000, lty = 2, col = "coral")
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
 
 
 # .. Treatment in 1999 ####
 dataprep.out <-
   dataprep(foo = data,
            predictors = NULL,
+           predictors.op = NULL,
            time.predictors.prior = 1990:1999,
            special.predictors = list(
              list("rescaled1990", 1991:1992, "mean"),
@@ -921,7 +953,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,3] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store[,9] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1999.pdf",
@@ -944,10 +976,68 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,4], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,3], col = "coral", lty = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,9], col = "cornflowerblue", lty = 2)
 abline(v = 2001, lty = 2)
-abline(v = 1999, lty = 2, col = "coral")
+abline(v = 1999, lty = 2, col = "cornflowerblue")
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1998 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = 1990:1998,
+           special.predictors = list(
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean"),
+             list("rescaled1990", 1995:1996, "mean"),
+             list("rescaled1990", 1996:1997, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1990:1998,
+           time.plot = 1990:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,8] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1998.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,8], col = "chocolate", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1998, lty = 2, col = "chocolate")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
@@ -960,6 +1050,7 @@ dev.off()
 dataprep.out <-
   dataprep(foo = data,
            predictors = NULL,
+           predictors.op = NULL,
            time.predictors.prior = 1990:1997,
            special.predictors = list(
              list("rescaled1990", 1991:1992, "mean"),
@@ -977,7 +1068,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,2] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store[,7] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1997.pdf",
@@ -1000,10 +1091,67 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,4], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,2], col = "cornflowerblue", lty = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,7], col = "darkorchid", lty = 2)
 abline(v = 2001, lty = 2)
-abline(v = 1997, lty = 2, col = "cornflowerblue")
+abline(v = 1997, lty = 2, col = "darkorchid")
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1996 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = 1990:1996,
+           special.predictors = list(
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1993:1994, "mean"),
+             list("rescaled1990", 1994:1995, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1990:1996,
+           time.plot = 1990:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,6] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1996.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,6], col = "darkgoldenrod1", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1996, lty = 2, col = "darkgoldenrod1")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
@@ -1016,6 +1164,7 @@ dev.off()
 dataprep.out <-
   dataprep(foo = data,
            predictors = NULL,
+           predictors.op = NULL,
            time.predictors.prior = 1990:1995,
            special.predictors = list(
              list("rescaled1990", 1991:1992, "mean"),
@@ -1032,7 +1181,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,1] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store[,5] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1995.pdf",
@@ -1055,10 +1204,231 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,4], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,1], col = "darkgoldenrod1", lty = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,5], col = "mediumseagreen", lty = 2)
 abline(v = 2001, lty = 2)
-abline(v = 1995, lty = 2, col = "darkgoldenrod1")
+abline(v = 1995, lty = 2, col = "mediumseagreen")
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1994 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = 1990:1994,
+           special.predictors = list(
+             list("rescaled1990", 1991:1992, "mean"),
+             list("rescaled1990", 1992:1993, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1990:1994,
+           time.plot = 1990:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,4] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1994.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,4], col = "deeppink", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1994, lty = 2, col = "deeppink")
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1993 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = 1990:1993,
+           special.predictors = list(
+             list("rescaled1990", 1991:1992, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1990:1993,
+           time.plot = 1990:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,3] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1993.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1993", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,3], col = "darkviolet", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1993, lty = 2, col = "darkviolet")
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1992 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = 1990:1992,
+           special.predictors = list(
+             list("rescaled1990", 1990:1991, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1990:1992,
+           time.plot = 1990:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,2] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1992.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,2], col = "darkturquoise", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1992, lty = 2, col = "darkturquoise")
+legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
+text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+dev.off()
+
+
+# .. Treatment in 1991 ####
+dataprep.out <-
+  dataprep(foo = data,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = 1990:1991,
+           special.predictors = list(
+             list("rescaled1990", 1990:1991, "mean")),
+           dependent = "rescaled1990",
+           unit.variable = "countryid",
+           unit.names.variable = "countryname",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = 1990:1991,
+           time.plot = 1990:2005)
+
+synth.out <- synth(data.prep.obj = dataprep.out,
+                   method = "BFGS")
+
+store[,1] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Plot
+pdf("../Figures/Emissions paths in treated and synth_placebo year 1991.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, dataprep.out$Y1plot,
+     type = "l", col = "#872341", lwd = 2,
+     xlim = range(years), ylim = c(0.9,1.1),
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store[,1], col = "palevioletred4", lty = 2)
+abline(v = 2001, lty = 2)
+abline(v = 1991, lty = 2, col = "palevioletred4")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
