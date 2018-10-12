@@ -91,9 +91,9 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
 #setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
-setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
+#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
 library(dplyr)
 library(foreign) # Deprecated with newest R updated
@@ -276,6 +276,7 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
 capture.output(results, file = "Supplementary Information/Results Specification 1.txt")
+donor.weights <- as.data.frame(synth.tables$tab.w)[,-3]
 
 
 # .. Generate results ####
@@ -653,6 +654,7 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
 capture.output(results, file = "Supplementary Information/Results Specification 2.txt")
+donor.weights <- cbind(donor.weights, as.data.frame(synth.tables$tab.w)[,-3])
 
 
 # .. Generate results ####
@@ -1030,6 +1032,7 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
 capture.output(results, file = "Supplementary Information/Results Specification 3.txt")
+donor.weights <- cbind(donor.weights, as.data.frame(synth.tables$tab.w)[,-3])
 
 
 # .. Generate results ####
@@ -1397,6 +1400,7 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
 capture.output(results, file = "Supplementary Information/Results Specification 4.txt")
+donor.weights <- cbind(donor.weights, as.data.frame(synth.tables$tab.w)[,-3])
 
 
 # .. Generate results ####
@@ -1769,6 +1773,7 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
 capture.output(results, file = "Supplementary Information/Results Specification 5.txt")
+donor.weights <- cbind(donor.weights, as.data.frame(synth.tables$tab.w)[,-3])
 
 
 # .. Generate results ####
@@ -2132,6 +2137,7 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
 capture.output(results, file = "Supplementary Information/Results Specification 6.txt")
+donor.weights <- cbind(donor.weights, as.data.frame(synth.tables$tab.w)[,-3])
 
 
 # .. Generate results ####
@@ -2525,6 +2531,14 @@ synth.tables <- synth.tab(dataprep.res = dataprep.out,
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
 capture.output(results, file = "Supplementary Information/Results Specification 7.txt")
+donor.weights <- cbind(donor.weights, as.data.frame(synth.tables$tab.w)[,-3])
+donor.weights <- donor.weights[, -c(4,6,8,10,12,14)]
+donor.weights <- donor.weights %>%
+  select(unit.names, everything())
+colnames(donor.weights) <- c("Donor countries", "Specification 1", "Specification 2",
+                             "Specification 3", "Specification 4", "Specification 5",
+                             "Specification 6", "Specification 7")
+stargazer(donor.weights, summary = F, rownames = F)
 
 
 # .. Generate results ####
@@ -2839,3 +2853,9 @@ lines(years, leaveoneout.results[gap.start:gap.end, which(colnames(leaveoneout.r
       type = "l", col = "darkorange")
 text(2004.1, -0.011, "No LUX", cex = 0.8, col = "darkorange")
 dev.off()
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# TABLES FOR SI          ####
+## ## ## ## ## ## ## ## ## ##
