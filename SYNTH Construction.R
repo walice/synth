@@ -177,6 +177,23 @@ ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = CO2_emissions_PC, co
   theme(legend.position="bottom", legend.title = element_blank())
 dev.off()
 
+pdf("../Figures/CO2 emissions in effective sample.pdf", 
+    height = 4.5, width = 6)
+ggplot(data %>% filter(countrycode == "JPN" |
+                         countrycode == "FRA" |
+                         countrycode == "LUX" |
+                         countrycode == "HUN" |
+                         countrycode == "POL"), 
+       aes(x = year, y = rescaled1990, col = countryname)) + 
+  geom_line() +
+  xlab("Year") + ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
+  ggtitle("Emissions trends in the United Kingdom and effective sample") +
+  geom_line(data = data[data$countrycode == "GBR",], 
+            aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
+  theme(legend.position="bottom", legend.title = element_blank()) +
+  xlim(1990, 2010)
+dev.off()
+
 pdf("../Figures/CO2 emissions (1990) in sample.pdf", 
     height = 4.5, width = 6)
 ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = rescaled1990, col = countryname)) + 
