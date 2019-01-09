@@ -26,9 +26,11 @@
 # .. Recreating built-in Synth graph for paths 
 # .. Recreating built-in Synth graph for gaps 
 # Placebo Loops
-# .. Running Synth 
+# .. Running Synth
+# .. Store emissions path in treated unit and its synthetic counterpart
 # .. Calculating annual gaps between the UK and its synthetic counterpart
-# .. Placebo figure
+# .. Emissions paths figures
+# .. Gaps figure
 # .. MSPE analysis
 # Leave-One-Out Check    
 # .. Running Synth 
@@ -71,6 +73,11 @@ library(Synth)
 
 whodat <- function(id) {
   country <- data[which(data$countryid == id), 2][1]
+  return(country)
+}
+
+whatname <- function(id) {
+  country <- data[which(data$countryid == id), 3][1]
   return(country)
 }
 
@@ -457,28 +464,6 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-# Plot emissions per capita pre- and post-intervention in the placebo
-# and in the synthetic control
-path.plot(synth.res = synth.out,
-          dataprep.res = dataprep.out,
-          Ylab = "CO2 emissions relative to 1990",
-          Xlab = "Year",
-          #Ylim = c(0.6,1.6),
-          #Ylim = range(dataprep.out$Y1plot, dataprep.out$Y0plot %*% synth.out$solution.w),
-          Main = "Placebo Test - Synthetic Counterfactual",
-          Legend = c("Australia","Synthetic Australia"),
-          Legend.position = "bottomright")
-abline(v = 2001)
-
-# Plot gaps in outcomes between Mexico and the synthetic control
-gaps.plot(synth.res = synth.out,
-          dataprep.res = dataprep.out,
-          Ylab = "CO2 emissions relative to 1990",
-          Xlab = "Year",
-          #Ylim = c(-1.5,1.5),
-          Main = "Gap between Placebo and Synthetic Control")
-abline(v = 2001)
-
 
 # .. Outcomes ####
 names(dataprep.out)
@@ -585,9 +570,16 @@ placebo.names[i] <- whodat(countries[i])
 }
 placebo.names
 
-store <- matrix(NA, length(1990:2005), length(countries))
-colnames(store) <- placebo.names
-store
+store.gaps <- matrix(NA, length(1990:2005), length(countries))
+colnames(store.gaps) <- placebo.names
+store.gaps
+
+store.obs <- matrix(NA, length(1990:2005), length(countries))
+colnames(store.obs) <- placebo.names
+
+store.synth <- matrix(NA, length(1990:2005), length(countries))
+colnames(store.synth) <- placebo.names
+
 
 for (i in 1:length(placebos)){
 dataprep.out <-
@@ -616,13 +608,57 @@ synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
 
+# .. Store emissions path in treated unit and its synthetic counterpart ####
+store.obs[,i] <- dataprep.out$Y1plot
+store.synth[,i] <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+
 # .. Calculating annual gaps between the treated and its synthetic counterpart ####
-store[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
 
 
-# .. Placebo figure ####
-placebo.results <- store
+# .. Emissions paths figures ####
+c.labels <- NA
+for (i in 1:length(countries)){
+  c.labels[i] <- whatname(countries[i])
+}
+
+for (c in 1:length(countries)){
+  pdf(paste0("../Figures/Emissions paths in placebo and synth_", c.labels[c], ".pdf"), 
+    height = 4.5, width = 6)
+  plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+  u <- par("usr") # The coordinates of the plot area
+  rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+  grid (NULL, NULL, lty = 1, col = "seashell")
+  par(new = TRUE, mgp = c(2, 1, 0))
+  plot(years, store.obs[,c], 
+       type = "l", col = "#014421", lwd = 2,
+       xlim = range(years), ylim = range(store.obs[,c], store.synth[,c]), 
+       las = 1, cex.axis = 0.8, tck = -0.05,
+       xlab = "Year",
+       ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+       main = "Observed and Synthetic Counterfactual Emissions",
+       frame.plot = FALSE, axes = F)
+  axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+       tck = -0.01, mgp = c(0, 0.2, 0))
+  axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+       tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+  lines(years, store.synth[,c], col = "#11904E", lty = 2, lwd = 2)
+  abline(v = 2001, lty = 2)
+  mtext(c.labels[c],
+        cex = 0.8, side = 3, padj = -0.8, adj = 0)
+  # legend(1990, 0.8, c("Australia", "Synthetic Australia"),
+  #        lty = c(1,2), lwd = c(2,2), col = c("#014421", "#11904E"),
+  #        cex = 0.8, box.col = "seashell", bg = "seashell")
+  arrows(1999, 0.75, 2000.9, 0.75, length = 0.1, code = 2)
+  text(1997.5, 0.754, "CCL enacted", cex = 0.8)
+  dev.off()
+}
+
+
+# .. Gaps figure ####
+placebo.results <- store.gaps
 rownames(placebo.results) <- c(choose.time.predictors, seq(2002, 2005, 1))
 placebo.results
 
@@ -680,7 +716,7 @@ colnames(placebo.results)
 
 
 # .. MSPE analysis ####
-placebo.results <- store
+placebo.results <- store.gaps
 rownames(placebo.results) <- c(choose.time.predictors, seq(2002, 2005, 1))
 
 # Mean Square Prediction Error Pre-Treatment
@@ -747,9 +783,9 @@ for (i in 1:length(leaveoneout.controls)){
 leaveoneout.names <- append(leaveoneout.names, "Dropped", length(leaveoneout.names))
 leaveoneout.names
 
-store <- matrix(NA, length(1990:2005), length(countries))
-colnames(store) <- paste("No_", leaveoneout.names, sep = "")
-store
+store.gaps <- matrix(NA, length(1990:2005), length(countries))
+colnames(store.gaps) <- paste("No_", leaveoneout.names, sep = "")
+store.gaps
 
 # for (i in 1:length(leaveoneout.controls)+1){
 #   print(i)
@@ -790,12 +826,12 @@ synth.out <- synth(data.prep.obj = dataprep.out,
 
 
 # .. Calculating annual gaps between the UK and its synthetic counterpart ####
-store[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
 
 
 # .. Leave-one-out figure ####
-leaveoneout.results <- store
+leaveoneout.results <- store.gaps
 rownames(leaveoneout.results) <- c(choose.time.predictors, seq(2002, 2005, 1))
 leaveoneout.results
 
@@ -856,9 +892,9 @@ for (i in 1:length(control.units)){
 
 placebo.years <- c(seq(1991, 2001))
 
-store <- matrix(NA, length(1990:2005), length(placebo.years))
-colnames(store) <- paste("Tx_", c(seq(1991, 2001)), sep = "")
-store
+store.gaps <- matrix(NA, length(1990:2005), length(placebo.years))
+colnames(store.gaps) <- paste("Tx_", c(seq(1991, 2001)), sep = "")
+store.gaps
 
 
 # .. Treatment in 2001 ####
@@ -885,7 +921,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,11] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,11] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 
 # .. Treatment in 2000 ####
@@ -912,7 +948,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,10] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,10] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 2000.pdf",
@@ -935,8 +971,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,10], col = "coral", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,10], col = "coral", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 2000, lty = 2, col = "coral")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -970,7 +1006,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,9] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,9] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1999.pdf",
@@ -993,8 +1029,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,9], col = "cornflowerblue", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,9], col = "cornflowerblue", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1999, lty = 2, col = "cornflowerblue")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1028,7 +1064,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,8] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,8] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1998.pdf",
@@ -1051,8 +1087,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,8], col = "chocolate", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,8], col = "chocolate", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1998, lty = 2, col = "chocolate")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1085,7 +1121,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,7] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,7] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1997.pdf",
@@ -1108,8 +1144,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,7], col = "darkorchid", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,7], col = "darkorchid", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1997, lty = 2, col = "darkorchid")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1142,7 +1178,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,6] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,6] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1996.pdf",
@@ -1165,8 +1201,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,6], col = "darkgoldenrod1", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,6], col = "darkgoldenrod1", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1996, lty = 2, col = "darkgoldenrod1")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1198,7 +1234,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,5] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,5] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1995.pdf",
@@ -1221,8 +1257,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,5], col = "mediumseagreen", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,5], col = "mediumseagreen", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1995, lty = 2, col = "mediumseagreen")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1254,7 +1290,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,4] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,4] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1994.pdf",
@@ -1277,8 +1313,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,4], col = "deeppink", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,4], col = "deeppink", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1994, lty = 2, col = "deeppink")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1309,7 +1345,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,3] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,3] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1993.pdf",
@@ -1332,8 +1368,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,3], col = "darkviolet", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,3], col = "darkviolet", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1993, lty = 2, col = "darkviolet")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1364,7 +1400,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,2] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,2] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1992.pdf",
@@ -1387,8 +1423,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,2], col = "darkturquoise", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,2], col = "darkturquoise", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1992, lty = 2, col = "darkturquoise")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
@@ -1419,7 +1455,7 @@ dataprep.out <-
 synth.out <- synth(data.prep.obj = dataprep.out,
                    method = "BFGS")
 
-store[,1] <- dataprep.out$Y0plot %*% synth.out$solution.w
+store.gaps[,1] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 # Plot
 pdf("../Figures/Emissions paths in treated and synth_placebo year 1991.pdf",
@@ -1442,8 +1478,8 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store[,1], col = "palevioletred4", lty = 2)
+lines(years, store.gaps[,11], col = "#BE3144", lty = 2, lwd = 2)
+lines(years, store.gaps[,1], col = "palevioletred4", lty = 2)
 abline(v = 2001, lty = 2)
 abline(v = 1991, lty = 2, col = "palevioletred4")
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
