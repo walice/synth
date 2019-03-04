@@ -59,14 +59,9 @@ setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice lap
 #setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
 #setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
-#library(dplyr)
-library(foreign) # Deprecated with newest R updated
 library(gghighlight)
-#library(ggplot2)
 library(gridExtra)
-library(readstata13) # Using
-#library(tidyr)
-#library(plyr)
+library(readstata13)
 library(stargazer)
 library(Synth)
 library(tidyverse)
@@ -117,6 +112,7 @@ data <- join(data, data %>%
 # Emissions as difference in log levels
 data$logdiff <- log(data$en_atm_co2e_kt/data$baseline)
 
+# Missing data
 nmiss <- ddply(data, "countryid", summarize,
                gdp.missing = sum(is.na(ny_gdp_pcap_kd)),
                co2.missing = sum(is.na(rescaled1990)),
@@ -655,9 +651,6 @@ for (c in 1:length(countries)){
   abline(v = 2001, lty = 2)
   mtext(c.labels[c],
         cex = 0.8, side = 3, padj = -0.8, adj = 0)
-  # legend(1990, 0.8, c("Australia", "Synthetic Australia"),
-  #        lty = c(1,2), lwd = c(2,2), col = c("#014421", "#11904E"),
-  #        cex = 0.8, box.col = "seashell", bg = "seashell")
   arrows(1999, 0.75, 2000.9, 0.75, length = 0.1, code = 2)
   text(1997.5, 0.754, "CCP enacted", cex = 0.8)
   dev.off()
@@ -682,7 +675,8 @@ UK.mse <- as.numeric(mse["GBR"])
 # Exclude countries with 5 times higher MSPE than UK
 placebo.results[, mse > 5*UK.mse]
 # Exclude AUT, BEL, CHE, CHL, ESP, FIN, FRA, GRC, HUN, IRL, ISL, ISR, KOR, LUX, MEX, NZL, POL, PRT, TUR
-placebo.results <- placebo.results[, mse < 5*UK.mse]
+placebo.results_5 <- placebo.results[, mse < 5*UK.mse]
+placebo.results_10 <- placebo.results[, mse < 10*UK.mse]
 
 # Plot
 pdf("../Figures/Gaps in emissions_placebo_all.pdf", 
@@ -717,9 +711,77 @@ lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=
       type = "l", col = "darkorchid", lwd = 2)
 dev.off()
 
+# Plot excluding placebos with MSPE > 5
+pdf("../Figures/Gaps in emissions_placebo_MSPE5.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, placebo.results_5[gap.start:gap.end, which(colnames(placebo.results_5)=="GBR")],
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
+     ylim = c(-0.1,0.1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
+for (i in 1:ncol(placebo.results_5)){
+  lines(years, placebo.results_5[gap.start:gap.end, i], col = "gray") 
+}
+lines(years, placebo.results_5[gap.start:gap.end, which(colnames(placebo.results_5)=="GBR")],
+      type = "l", col = "darkorchid", lwd = 2)
+dev.off()
+
+# Plot excluding placebos with MSPE > 10
+pdf("../Figures/Gaps in emissions_placebo_MSPE10.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, placebo.results_10[gap.start:gap.end, which(colnames(placebo.results_10)=="GBR")],
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
+     ylim = c(-0.1,0.1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
+for (i in 1:ncol(placebo.results_10)){
+  lines(years, placebo.results_10[gap.start:gap.end, i], col = "gray") 
+}
+lines(years, placebo.results_10[gap.start:gap.end, which(colnames(placebo.results_10)=="GBR")],
+      type = "l", col = "darkorchid", lwd = 2)
+dev.off()
+
 # How many control states remain?
-colnames(placebo.results)
+colnames(placebo.results_5)
 # 6 control states: AUS, CAN, GBR, ITA, JPN, USA
+
+# USA is the country outside of the distribution.
 
 
 # .. MSPE analysis ####
