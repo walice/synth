@@ -17,7 +17,6 @@
 # .. Export results
 # Generate Results    
 # .. Outcomes 
-# .. Convert emissions per capita to tonnes and mega tonnes 
 # .. Recreating built-in Synth graph for paths 
 # .. Recreating built-in Synth graph for gaps 
 # Placebo for Single Country 
@@ -27,6 +26,7 @@
 # .. Recreating built-in Synth graph for gaps 
 # Placebo Loops
 # .. Running Synth
+# .. Outcomes
 # .. Store emissions path in treated unit and its synthetic counterpart
 # .. Calculating annual gaps between the UK and its synthetic counterpart
 # .. Emissions paths figures
@@ -37,12 +37,17 @@
 # .. Calculating annual gaps between the UK and its synthetic counterpart
 # .. Leave-one-out figure 
 # Re-Assign Treatment Year
-# .. Running Synth
 # .. Treatment in 2001
+# .. Treatment in 2000
 # .. Treatment in 1999
+# .. Treatment in 1998
 # .. Treatment in 1997
+# .. Treatment in 1996
 # .. Treatment in 1995
-# Trajectory Balancing
+# .. Treatment in 1994
+# .. Treatment in 1993
+# .. Treatment in 1992
+# .. Treatment in 1991
 
 
 
@@ -50,20 +55,21 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
 #setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
-setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
+#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
-library(dplyr)
+#library(dplyr)
 library(foreign) # Deprecated with newest R updated
 library(gghighlight)
-library(ggplot2)
+#library(ggplot2)
 library(gridExtra)
 library(readstata13) # Using
-library(tidyr)
-library(plyr)
+#library(tidyr)
+#library(plyr)
 library(stargazer)
 library(Synth)
+library(tidyverse)
 
 
 
@@ -99,15 +105,16 @@ whoder <- function() {
 data <- read.dta13("WDI.dta")
 whoder()
 
-data$scaledCO2 <- NA
+# Rescale emissions to 1990 
+data <- join(data, data %>%
+               group_by(countryid) %>%
+               filter(year == 1990) %>%
+               select(countryid, baseline = en_atm_co2e_kt) %>%
+               ungroup(),
+             by = "countryid") %>%
+  mutate(rescaled1990 = en_atm_co2e_kt/baseline)
 
-countrygroup <- group_by(data, countryid)
-base1990bycountry <- summarize(countrygroup,baseline = en_atm_co2e_kt[which(year==1990)])
-base1990bycountry$countryid <- unique(countrygroup$countryid)
-
-data <- join(data, base1990bycountry)
-data$rescaled1990 <- data$en_atm_co2e_kt/data$baseline
-
+# Emissions as difference in log levels
 data$logdiff <- log(data$en_atm_co2e_kt/data$baseline)
 
 nmiss <- ddply(data, "countryid", summarize,
@@ -169,7 +176,7 @@ whoder()
 
 whichnum("MEX")
 whichnum("LUX") # Pre-treatment trend is bonkers. If removed, optimization over longer period buggers.
-#data <- subset(data, !(countryid %in% c(23)))
+# data <- subset(data, !(countryid %in% c(23)))
 
 UK <- subset(data, (countrycode %in% c("GBR")))
 
@@ -391,7 +398,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -419,7 +426,7 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
-text(1998, -0.0695, "CCL enacted", cex = 0.8)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -510,7 +517,7 @@ legend(1990, 0.8, c("Australia", "Synthetic Australia"),
        lty = c(1,2), lwd = c(2,2), col = c("#014421", "#11904E"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.75, 2000.9, 0.75, length = 0.1, code = 2)
-text(1997.5, 0.754, "CCL enacted", cex = 0.8)
+text(1997.5, 0.754, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -538,7 +545,7 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
-text(1998, -0.0695, "CCL enacted", cex = 0.8)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
 lines(years, gaps,
       type = "l", col = "darkorchid", lwd = 2)
 dev.off()
@@ -652,7 +659,7 @@ for (c in 1:length(countries)){
   #        lty = c(1,2), lwd = c(2,2), col = c("#014421", "#11904E"),
   #        cex = 0.8, box.col = "seashell", bg = "seashell")
   arrows(1999, 0.75, 2000.9, 0.75, length = 0.1, code = 2)
-  text(1997.5, 0.754, "CCL enacted", cex = 0.8)
+  text(1997.5, 0.754, "CCP enacted", cex = 0.8)
   dev.off()
 }
 
@@ -702,7 +709,7 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
-text(1998, -0.0695, "CCL enacted", cex = 0.8)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(placebo.results)){
   lines(years, placebo.results[gap.start:gap.end, i], col = "gray") 
 }
@@ -866,7 +873,7 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
-text(1998, -0.0695, "CCL enacted", cex = 0.8)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(leaveoneout.results)){
   lines(years, leaveoneout.results[gap.start:gap.end, i], col = "thistle") 
 }
@@ -979,7 +986,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1037,7 +1044,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1095,7 +1102,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1152,7 +1159,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1209,7 +1216,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1265,7 +1272,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1321,7 +1328,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1376,7 +1383,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1431,7 +1438,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1486,7 +1493,7 @@ legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("#872341", "#BE3144"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
 arrows(1999, 0.93, 2000.9, 0.93, length = 0.1, code = 2)
-text(1997.5, 0.9307, "CCL enacted", cex = 0.8)
+text(1997.5, 0.9307, "CCP enacted", cex = 0.8)
 dev.off()
 
 

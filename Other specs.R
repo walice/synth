@@ -1349,21 +1349,25 @@ dataprep.out <-
                           "eg_imp_cons_zs", #Energy imports, net (% of energy use)
                           "eg_fec_rnew_zs", #Renewable energy consumption (% of total final energy consumption)
                           "eg_use_comm_fo_zs", #Fossil fuel energy consumption (% of total)
-                          #"gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
-                          #"eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
-                          #"ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
+                          "gc_tax_totl_gd_zs", #Tax revenue (% of GDP)
+                          "eg_gdp_puse_ko_pp_kd", #GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
+                          "ny_gdp_totl_rt_zs", #Total natural resources rents (% of GDP)
                           #"se_xpd_totl_gd_zs", #Government expenditure on education, total (% of GDP)
-                          #"ny_gdp_mktp_kd_zg", #GDP growth (annual %)
-                          #"eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
+                          "ny_gdp_mktp_kd_zg", #GDP growth (annual %)
+                          "eg_elc_rnew_zs", #Renewable electricity output (% of total electricity output)
                           "eg_use_pcap_kg_oe", #Energy use (kg of oil equivalent per capita)
-                          "tx_val_fuel_zs_un" #Fuel exports (% of merchandise exports)
-                          #"ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
-                          #"ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
+                          "tx_val_fuel_zs_un", #Fuel exports (% of merchandise exports)
+                          "ne_exp_gnfs_zs", #Exports of goods and services (% of GDP)
+                          "ne_imp_gnfs_zs" #Imports of goods and services (% of GDP)
            ),
            predictors.op = "mean",
            time.predictors.prior = choose.time.predictors,
            special.predictors = list(
-             list("CO2_emissions_PC", choose.time.predictors, "mean")),
+             list("CO2_emissions_PC", 1991:1992, "mean"),
+             list("CO2_emissions_PC", 1993:1994, "mean"),
+             list("CO2_emissions_PC", 1995:1996, "mean"),
+             list("CO2_emissions_PC", 1997:1998, "mean"),
+             list("CO2_emissions_PC", 1999:2000, "mean")),
            dependent = "CO2_emissions_PC",
            unit.variable = "countryid",
            unit.names.variable = "countryname",
