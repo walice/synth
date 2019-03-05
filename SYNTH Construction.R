@@ -61,6 +61,7 @@ setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice lap
 library(devtools)
 library(gghighlight)
 library(gridExtra)
+library(plyr)
 library(readstata13)
 library(stargazer)
 library(Synth)
@@ -101,7 +102,7 @@ data <- read.dta13("WDI.dta")
 whoder()
 
 # Rescale emissions to 1990 
-data <- join(data, data %>%
+data <- left_join(data, data %>%
                group_by(countryid) %>%
                filter(year == 1990) %>%
                select(countryid, baseline = en_atm_co2e_kt) %>%
@@ -352,20 +353,24 @@ abline(v = 2001, lty = 2)
 # .. Outcomes ####
 names(dataprep.out)
 
-dataprep.out$Y0plot
+Y0plot.UK <- dataprep.out$Y0plot
 # Outcome variable in donor pool
 
-dataprep.out$Y1plot
+Y1plot.UK <- dataprep.out$Y1plot
 # Outcome variable in treated unit
+
+w.UK <- synth.out$solution.w
+# Weights applied to each country in the donor pool
 
 years <- c(choose.time.predictors, seq(2002, 2005, 1))
 # Pre- and post-intervention periods
 
-synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+synth.UK <- Y0plot.UK %*% w.UK
 # Outcome variable in synthetic unit
 
-gaps <- dataprep.out$Y1plot - synth
+gaps.UK <- Y1plot.UK - synth.UK
 # Gaps between outcomes in treated and synthetic control
+colnames(gaps.UK) <- "GBR"
 
 
 # .. Recreating built-in Synth graph for paths ####
@@ -376,7 +381,7 @@ u <- par("usr") # The coordinates of the plot area
 rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot, 
+plot(years, Y1plot.UK, 
      type = "l", col = "royalblue4", lwd = 2,
      xlim = range(years), ylim = c(0.9,1.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
@@ -388,7 +393,7 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
+lines(years, synth.UK, col = "royalblue1", lty = 2, lwd = 2)
 abline(v = 2001, lty = 2)
 legend(1990, 0.9445, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
@@ -406,7 +411,7 @@ u <- par("usr") # The coordinates of the plot area
 rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, gaps, 
+plot(years, gaps.UK, 
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
      ylim = c(-0.1,0.1), 
@@ -471,19 +476,22 @@ synth.out <- synth(data.prep.obj = dataprep.out,
 # .. Outcomes ####
 names(dataprep.out)
 
-dataprep.out$Y0plot
+Y0plot.placebo <- dataprep.out$Y0plot
 # Outcome variable in donor pool
 
-dataprep.out$Y1plot
+Y1plot.placebo <- dataprep.out$Y1plot
 # Outcome variable in treated unit
+
+w.placebo <- synth.out$solution.w
+# Weights applied to each country in the donor pool
 
 years <- c(choose.time.predictors, seq(2002, 2005, 1))
 # Pre- and post-intervention periods
 
-synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+synth.placebo <- Y0plot.placebo %*% w.placebo
 # Outcome variable in synthetic unit
 
-gaps <- dataprep.out$Y1plot - synth
+gaps.placebo <- dataprep.out$Y1plot - synth.placebo
 # Gaps between outcomes in treated and synthetic control
 
 
@@ -495,7 +503,7 @@ u <- par("usr") # The coordinates of the plot area
 rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot, 
+plot(years, Y1plot.placebo, 
      type = "l", col = "#014421", lwd = 2,
      xlim = range(years), ylim = c(0.6,1.6), 
      las = 1, cex.axis = 0.8, tck = -0.05,
@@ -507,7 +515,7 @@ axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, synth, col = "#11904E", lty = 2, lwd = 2)
+lines(years, synth.placebo, col = "#11904E", lty = 2, lwd = 2)
 abline(v = 2001, lty = 2)
 legend(1990, 0.8, c("Australia", "Synthetic Australia"),
        lty = c(1,2), lwd = c(2,2), col = c("#014421", "#11904E"),
@@ -525,7 +533,7 @@ u <- par("usr") # The coordinates of the plot area
 rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, gaps, 
+plot(years, gaps.placebo, 
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
      ylim = c(-0.1,0.1), 
@@ -542,7 +550,7 @@ abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
 text(1998, -0.0695, "CCP enacted", cex = 0.8)
-lines(years, gaps,
+lines(years, gaps.placebo,
       type = "l", col = "darkorchid", lwd = 2)
 dev.off()
 
@@ -552,7 +560,7 @@ dev.off()
 # PLACEBO LOOPS          ####
 ## ## ## ## ## ## ## ## ## ##
 
-countries <- t(unique(data[1]))
+countries <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
 countries
 for (i in 1:length(countries)){
   print(whodat(countries[i]))
@@ -622,6 +630,11 @@ store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solut
 
 
 # .. Emissions paths figures ####
+store.obs <- cbind(store.obs, Y1plot.UK)
+store.synth <- cbind(store.synth, synth.UK)
+store.gaps <- cbind(store.gaps, gaps.UK)
+
+countries <- c(countries, "14")
 c.labels <- NA
 for (i in 1:length(countries)){
   c.labels[i] <- whatname(countries[i])
@@ -674,7 +687,7 @@ UK.mse <- as.numeric(mse["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 placebo.results[, mse > 5*UK.mse]
-# Exclude AUT, BEL, CHE, CHL, ESP, FIN, FRA, GRC, HUN, IRL, ISL, ISR, KOR, LUX, MEX, NZL, POL, PRT, TUR
+# Exclude AUT, BEL, CHE, CHL, ESP, FIN, FRA, GRC, HUN, IRL, ISL, ISR, JPN, KOR, LUX, MEX, NZL, POL, PRT, TUR
 placebo.results_5 <- placebo.results[, mse < 5*UK.mse]
 placebo.results_10 <- placebo.results[, mse < 10*UK.mse]
 
@@ -779,7 +792,7 @@ dev.off()
 
 # How many control states remain?
 colnames(placebo.results_5)
-# 6 control states: AUS, CAN, GBR, ITA, JPN, USA
+# 6 control states: AUS, CAN, ITA, USA
 
 # USA is the country outside of the distribution.
 
@@ -1035,7 +1048,7 @@ plot(years, dataprep.out$Y1plot,
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
      main = "Observed and Synthetic Counterfactual Emissions",
      frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+mtext("Re-assigning treatment to placebo year 2000", side = 3, line = 0.4, font = 3)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
@@ -1151,7 +1164,7 @@ plot(years, dataprep.out$Y1plot,
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
      main = "Observed and Synthetic Counterfactual Emissions",
      frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+mtext("Re-assigning treatment to placebo year 1998", side = 3, line = 0.4, font = 3)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
@@ -1265,7 +1278,7 @@ plot(years, dataprep.out$Y1plot,
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
      main = "Observed and Synthetic Counterfactual Emissions",
      frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+mtext("Re-assigning treatment to placebo year 1996", side = 3, line = 0.4, font = 3)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
@@ -1377,7 +1390,7 @@ plot(years, dataprep.out$Y1plot,
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
      main = "Observed and Synthetic Counterfactual Emissions",
      frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+mtext("Re-assigning treatment to placebo year 1994", side = 3, line = 0.4, font = 3)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
@@ -1487,7 +1500,7 @@ plot(years, dataprep.out$Y1plot,
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
      main = "Observed and Synthetic Counterfactual Emissions",
      frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+mtext("Re-assigning treatment to placebo year 1992", side = 3, line = 0.4, font = 3)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
@@ -1542,7 +1555,7 @@ plot(years, dataprep.out$Y1plot,
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
      main = "Observed and Synthetic Counterfactual Emissions",
      frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
+mtext("Re-assigning treatment to placebo year 1991", side = 3, line = 0.4, font = 3)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(0, 0.2, 0))
 axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
