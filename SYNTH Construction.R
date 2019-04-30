@@ -48,6 +48,10 @@
 # .. Treatment in 1993
 # .. Treatment in 1992
 # .. Treatment in 1991
+# Trajectory Balancing
+# .. Reshape data
+# .. Mean balancing with intercept shift
+# .. Weights for countries in the donor pool
 
 
 
@@ -55,9 +59,9 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
+#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
 #setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
+setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
 library(devtools)
 library(gghighlight)
 library(gridExtra)
@@ -66,6 +70,8 @@ library(readstata13)
 library(stargazer)
 library(Synth)
 library(tidyverse)
+#devtools::install_github('xuyiqing/tjbal')
+library(tjbal)
 
 
 
@@ -237,6 +243,8 @@ ggplot(data[which(!data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data
             aes(x = year, y = CO2_emissions_PC, col = "United Kingdom"), size = 1.5) +
   theme(legend.position="bottom", legend.title = element_blank()) +
   scale_y_continuous(labels = function(x) round(as.numeric(x), 0)) 
+
+rm(missing, nmiss, UK, i, scandis)
 
 
 
@@ -1573,10 +1581,76 @@ dev.off()
 
 
 
+## ## ## ## ## ## ## ## ## ## ##
+# TRAJECTORY BALANCING      ####
+## ## ## ## ## ## ## ## ## ## ##
+
+# .. Reshape data ####
+data <- data %>%
+  mutate(treat = ifelse((countrycode == "GBR" & year > 2001), 1, 0))
+
+data <- data %>%
+  filter(!is.na(rescaled1990)) %>%
+  filter(year >= 1990 & year <= 2005)
+
+
+# .. Mean balancing with intercept shift ####
+mbal.out <- tjbal(data = data, Y = "rescaled1990", D = "treat", 
+                  X.avg.time = list(c(1990:2000)),
+                  index = c("countrycode","year"), kernel = FALSE, demean = TRUE)
+print(mbal.out)
+pdf("../Figures/Gaps in emissions in treated_Mbal.pdf", 
+    height = 4.5, width = 6)
+plot(mbal.out, type = "gap",
+     ylim = c(-0.1, 0.1))
+dev.off()
+pdf("../Figures/Emissions paths in treated and synth_Mbal.pdf", 
+    height = 4.5, width = 6)
+plot(mbal.out, type = "ct",
+     ylim = c(0.9, 1.1))
+dev.off()
+pdf("../Figures/Covariate balance_Mbal.pdf", 
+    height = 4.5, width = 6)
+plot(mbal.out, type = "balance")
+dev.off()
+plot(mbal.out, type = "weights")
+
+
+# .. Weights for countries in the donor pool ####
+mbal.out$names.co
+weights.mbal <- round(mbal.out$weights.co, 3)
+capture.output(weights.mbal, file = "Results Specification_Mbal.txt")
+
+# Outcome in the treated unit
+mbal.out$Y.tr
+
+# Outcome in the control units
+mbal.out$Y.co
+
+# Set of time periods
+mbal.out$Ttot
+mbal.out$Tpre
+mbal.out$Tpst
+mbal.out$T0
+
+# Number of units
+mbal.out$N
+mbal.out$Ntr
+mbal.out$Nco
+
+# Other summary stats
+mbal.out$matchvar
+mbal.out$Y.bar
+mbal.out$att
+mbal.out$bal.table
+mbal.out$sameT0
+
+
+
 # #### All below is archived for now.
 # 
 # # ## ## ## ## ## ## ## ## ## ##
-# # # TRAJECTORY BALANCING   ####
+# # # TRAJECTORY BALANCING   ###
 # # ## ## ## ## ## ## ## ## ## ##
 # # 
 # # devtools::install_github("chadhazlett/kbal")
