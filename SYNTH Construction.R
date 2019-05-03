@@ -183,6 +183,7 @@ whichnum("LUX") # Pre-treatment trend is bonkers. If removed, optimization over 
 
 UK <- subset(data, (countrycode %in% c("GBR")))
 
+# Emissions per capita in OECD
 pdf("../Figures/CO2 emissions in sample.pdf", 
     height = 4.5, width = 6)
 ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = CO2_emissions_PC, col = countryname)) + 
@@ -194,6 +195,7 @@ ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = CO2_emissions_PC, co
   theme(legend.position="bottom", legend.title = element_blank())
 dev.off()
 
+# Emissions relative to 1990 in effective sample
 pdf("../Figures/CO2 emissions in effective sample.pdf", 
     height = 4.5, width = 6)
 ggplot(data %>% filter(countrycode == "JPN" |
@@ -211,6 +213,7 @@ ggplot(data %>% filter(countrycode == "JPN" |
   xlim(1990, 2010)
 dev.off()
 
+# Emissions relative to 1990 in OECD
 pdf("../Figures/CO2 emissions (1990) in sample.pdf", 
     height = 4.5, width = 6)
 ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = rescaled1990, col = countryname)) + 
@@ -222,6 +225,7 @@ ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = rescaled1990, col = 
   theme(legend.position="bottom", legend.title = element_blank())
 dev.off()
 
+# Emissions relative to 1990 (log difference) in OECD
 pdf("../Figures/CO2 emissions (1990 log diff) in sample.pdf", 
     height = 4.5, width = 6)
 ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = logdiff, col = countryname)) + 
@@ -233,7 +237,7 @@ ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = logdiff, col = count
   theme(legend.position="bottom", legend.title = element_blank())
 dev.off()
 
-# Zooming in
+# Zooming in, emissions per capita in OECD
 ggplot(data[which(!data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data$CO2_emissions_PC <= 15),], 
        aes(x = year, y = CO2_emissions_PC, col = countryname)) + 
   geom_line() +
