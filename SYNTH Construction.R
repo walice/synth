@@ -253,7 +253,6 @@ rm(missing, nmiss, UK, i, scandis)
 ## ## ## ## ## ## ## ## ## ##
 
 # .. Optimize over 1990-2001, 1990 baseline, no covariates ####
-
 treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
 control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
 control.units
@@ -330,8 +329,7 @@ results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
 capture.output(results, file = "Results Specification.txt")
 
 
-# Plot emissions per capita pre- and post-intervention in the
-# and in the synthetic control
+# Plot emissions trajectories in the UK and in the synthetic control
 path.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions relative to 1990",
@@ -361,23 +359,23 @@ abline(v = 2001, lty = 2)
 # .. Outcomes ####
 names(dataprep.out)
 
-Y0plot.UK <- dataprep.out$Y0plot
 # Outcome variable in donor pool
+Y0plot.UK <- dataprep.out$Y0plot
 
-Y1plot.UK <- dataprep.out$Y1plot
 # Outcome variable in treated unit
+Y1plot.UK <- dataprep.out$Y1plot
 
-w.UK <- synth.out$solution.w
 # Weights applied to each country in the donor pool
+w.UK <- synth.out$solution.w
 
-years <- c(choose.time.predictors, seq(2002, 2005, 1))
 # Pre- and post-intervention periods
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
 
-synth.UK <- Y0plot.UK %*% w.UK
 # Outcome variable in synthetic unit
+synth.UK <- Y0plot.UK %*% w.UK
 
-gaps.UK <- Y1plot.UK - synth.UK
 # Gaps between outcomes in treated and synthetic control
+gaps.UK <- Y1plot.UK - synth.UK
 colnames(gaps.UK) <- "GBR"
 
 
@@ -484,23 +482,23 @@ synth.out <- synth(data.prep.obj = dataprep.out,
 # .. Outcomes ####
 names(dataprep.out)
 
-Y0plot.placebo <- dataprep.out$Y0plot
 # Outcome variable in donor pool
+Y0plot.placebo <- dataprep.out$Y0plot
 
-Y1plot.placebo <- dataprep.out$Y1plot
 # Outcome variable in treated unit
+Y1plot.placebo <- dataprep.out$Y1plot
 
-w.placebo <- synth.out$solution.w
 # Weights applied to each country in the donor pool
+w.placebo <- synth.out$solution.w
 
-years <- c(choose.time.predictors, seq(2002, 2005, 1))
 # Pre- and post-intervention periods
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
 
-synth.placebo <- Y0plot.placebo %*% w.placebo
 # Outcome variable in synthetic unit
+synth.placebo <- Y0plot.placebo %*% w.placebo
 
-gaps.placebo <- dataprep.out$Y1plot - synth.placebo
 # Gaps between outcomes in treated and synthetic control
+gaps.placebo <- dataprep.out$Y1plot - synth.placebo
 
 
 # .. Recreating built-in Synth graph for paths ####
@@ -1599,33 +1597,6 @@ mbal.out <- tjbal(data = data, Y = "rescaled1990", D = "treat",
                   X.avg.time = list(c(1990:2000)),
                   index = c("countrycode","year"), kernel = FALSE, demean = TRUE)
 print(mbal.out)
-pdf("../Figures/Gaps in emissions in treated_Mbal.pdf", 
-    height = 4.5, width = 6)
-plot(mbal.out, type = "gap",
-     ylim = c(-0.1, 0.1))
-dev.off()
-pdf("../Figures/Emissions paths in treated and synth_Mbal.pdf", 
-    height = 4.5, width = 6)
-plot(mbal.out, type = "ct",
-     ylim = c(0.9, 1.1))
-dev.off()
-pdf("../Figures/Covariate balance_Mbal.pdf", 
-    height = 4.5, width = 6)
-plot(mbal.out, type = "balance")
-dev.off()
-plot(mbal.out, type = "weights")
-
-
-# .. Weights for countries in the donor pool ####
-mbal.out$names.co
-weights.mbal <- round(mbal.out$weights.co, 3)
-capture.output(weights.mbal, file = "Results Specification_Mbal.txt")
-
-# Outcome in the treated unit
-mbal.out$Y.tr
-
-# Outcome in the control units
-mbal.out$Y.co
 
 # Set of time periods
 mbal.out$Ttot
@@ -1645,6 +1616,182 @@ mbal.out$att
 mbal.out$bal.table
 mbal.out$sameT0
 
+# Plot emissions trajectories in the UK and in the synthetic control
+pdf("../Figures/Emissions paths in treated and synth_Mbal.pdf", 
+    height = 4.5, width = 6)
+plot(mbal.out, type = "ct",
+     ylim = c(0.9, 1.1))
+dev.off()
+
+# Plot gaps in outcomes between the UK and the synthetic control
+plot(mbal.out, type = "gap",
+     ylim = c(-0.1, 0.1))
+
+# Plot covariance balance
+pdf("../Figures/Covariate balance_Mbal.pdf", 
+    height = 4.5, width = 6)
+plot(mbal.out, type = "balance")
+dev.off()
+
+# Plot weights
+plot(mbal.out, type = "weights")
+
+
+# .. Weights for countries in the donor pool ####
+mbal.out$names.co
+weights.mbal <- mbal.out$weights.co
+capture.output(round(weights.mbal, 3), file = "Results Specification_Mbal.txt")
+
+# Outcome in the treated unit
+Y.tr.mbal <- mbal.out$Y.tr
+
+# Outcome in the control units
+Y.co.mbal <- mbal.out$Y.co
+
+# Pre- and post-intervention periods
+years <- mbal.out$Ttot
+
+# ID vectors for the control units
+mbal.out$names.co
+mbal.out$id.co
+Y.co.mbal$countrycode <- mbal.out$names.co
+
+# .. Double check ID units correspond to correct countries ####
+test <- gather(Y.co.mbal, year, rescaled1990, rescaled19901990:rescaled19902005) %>%
+  mutate(year = str_sub(year, start = -4)) %>%
+  mutate(year = as.integer(year))
+test <- left_join(test, data %>% select(countrycode, year, rescaled1990),
+                  by = c("countrycode", "year"))
+sum(test$rescaled1990.x == test$rescaled1990.y) == nrow(test)
+# TRUE
+data %>% filter(countrycode != "GBR") %>% nrow == nrow(test)
+# TRUE
+rm(test)
+
+# Outcome variable in synthetic unit
+Y.co.mbal$countrycode <- NULL
+Y.co.mbal <- t(as.matrix(Y.co.mbal))
+Y0plot.UK == Y.co.mbal
+synth.mbal <- Y.co.mbal %*% weights.mbal
+
+# Gaps between outcomes in treated and synthetic control
+Y.tr.mbal <- t(as.matrix(Y.tr.mbal))
+gaps.mbal <- Y.tr.mbal - synth.mbal
+
+
+# .. Recreating built-in Synth graph for gaps ####
+pdf("../Figures/Gaps in emissions in treated_Mbal.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, gaps.mbal, 
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
+     ylim = c(-0.1,0.1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
+dev.off()
+
+
+
+## ## ## ## ## ## ## ## ## ##
+# LEAVE-ONE-OUT CHECK    ####
+## ## ## ## ## ## ## ## ## ##
+
+leaveoneout.controls <- data %>%
+  filter(countrycode != "GBR") %>%
+  distinct(countrycode) %>%
+  as.matrix %>% t
+
+store.gaps <- matrix(NA, length(1990:2005), length(leaveoneout.controls))
+colnames(store.gaps) <- paste("No_", leaveoneout.controls, sep = "")
+store.gaps
+
+nloops <- length(leaveoneout.controls)
+
+for (i in 1:nloops){
+  data.LOO <- data %>%
+    filter(countrycode != leaveoneout.controls[i])
+  
+  mbal.out <- tjbal(data = data.LOO, Y = "rescaled1990", D = "treat", 
+                    X.avg.time = list(c(1990:2000)),
+                    index = c("countrycode","year"), kernel = FALSE, demean = TRUE)
+  
+  # Weights for countries in the donor pool
+  weights.mbal <- mbal.out$weights.co
+  
+  # Outcome in the treated unit
+  Y.tr.mbal <- mbal.out$Y.tr
+  
+  # Outcome in the control units
+  Y.co.mbal <- mbal.out$Y.co
+  
+  # Outcome variable in synthetic unit
+  Y.co.mbal <- t(as.matrix(Y.co.mbal))
+  synth.mbal <- Y.co.mbal %*% weights.mbal
+  
+  # Gaps between outcomes in treated and synthetic control
+  Y.tr.mbal <- t(as.matrix(Y.tr.mbal))
+  store.gaps[,i] <- Y.tr.mbal - synth.mbal
+}
+
+store.gaps <- cbind(store.gaps, gaps.mbal)
+colnames(store.gaps)[ncol(store.gaps)] <- "No_Dropped"
+
+# .. Leave-one-out figure ####
+leaveoneout.results <- store.gaps
+rownames(leaveoneout.results) <- mbal.out$Ttot
+leaveoneout.results
+
+# Plot
+pdf("../Figures/Gaps in emissions_leave one out_Mbal.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, leaveoneout.results[, which(colnames(leaveoneout.results)=="No_Dropped")],
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
+     ylim = c(-0.1,0.1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+mtext("Leave-one-out robustness check", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
+for (i in 1:ncol(leaveoneout.results)){
+  lines(years, leaveoneout.results[, i], col = "thistle") 
+}
+lines(years, leaveoneout.results[, which(colnames(leaveoneout.results)=="No_Dropped")],
+      type = "l", col = "darkorchid", lwd = 2)
+lines(years, leaveoneout.results[, which(colnames(leaveoneout.results)=="No_LUX")],
+      type = "l", col = "darkorange")
+text(2004.1, 0.075, "No LUX", cex = 0.8, col = "darkorange")
+dev.off()
 
 
 # #### All below is archived for now.
