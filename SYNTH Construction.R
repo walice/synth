@@ -1709,6 +1709,100 @@ dev.off()
 
 
 ## ## ## ## ## ## ## ## ## ##
+# PLACEBO LOOPS          ####
+## ## ## ## ## ## ## ## ## ##
+
+data.placebo <- data %>%
+  filter(countrycode != "GBR")
+
+placebo.countries <- data.placebo %>%
+  distinct(countrycode) %>%
+  as.matrix %>% t
+
+store.gaps <- matrix(NA, length(1990:2005), length(placebo.countries))
+colnames(store.gaps) <- placebo.countries
+store.gaps
+
+nloops <- length(placebo.countries)
+
+for (i in 1:nloops){
+  data.placebo <- data.placebo %>%
+    mutate(treat = ifelse((countrycode == placebo.countries[i] & year > 2001), 1, 0))
+  
+  mbal.out <- tjbal(data = data.placebo, Y = "rescaled1990", D = "treat", 
+                    X.avg.time = list(c(1990:2000)),
+                    index = c("countrycode","year"), kernel = FALSE, demean = TRUE)
+  
+  # Weights for countries in the donor pool
+  weights.mbal <- mbal.out$weights.co
+  
+  # Outcome in the treated unit
+  Y.tr.mbal <- mbal.out$Y.tr
+  
+  # Outcome in the control units
+  Y.co.mbal <- mbal.out$Y.co
+  
+  # Outcome variable in synthetic unit
+  Y.co.mbal <- t(as.matrix(Y.co.mbal))
+  synth.mbal <- Y.co.mbal %*% weights.mbal
+  
+  # Gaps between outcomes in treated and synthetic control
+  Y.tr.mbal <- t(as.matrix(Y.tr.mbal))
+  store.gaps[,i] <- Y.tr.mbal - synth.mbal
+}
+
+store.gaps <- cbind(store.gaps, gaps.mbal)
+colnames(store.gaps)[ncol(store.gaps)] <- "GBR"
+rownames(store.gaps) <- years
+
+# Define pre-treatment period in gaps
+gap.start <- 1
+gap.end <- nrow(store.gaps)
+gap.end.pre <- which(rownames(store.gaps) == "2001")
+
+# Mean Square Prediction Error Pre-Treatment
+mse <- apply(store.gaps[gap.start:gap.end.pre, ]^2, 2, mean)
+UK.mse <- as.numeric(mse["GBR"])
+
+# Exclude countries with 5 times higher MSPE than UK
+store.gaps[, mse > 5*UK.mse]
+# Exclude AUT, BEL, CHE, CHL, ESP, FIN, FRA, GRC, HUN, IRL, ISL, ISR, JPN, KOR, LUX, MEX, NZL, POL, PRT, TUR
+placebo.results_5 <- store.gaps[, mse < 5*UK.mse]
+placebo.results_10 <- store.gaps[, mse < 10*UK.mse]
+
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, store.gaps[, which(colnames(store.gaps) == "GBR")],
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
+     ylim = c(-0.1,0.1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
+text(1998, -0.0695, "CCP enacted", cex = 0.8)
+for (i in 1:ncol(placebo.results_10)){
+  lines(years, placebo.results_10[, i], col = "gray") 
+}
+lines(years, store.gaps[, which(colnames(store.gaps)=="GBR")],
+      type = "l", col = "darkorchid", lwd = 2)
+
+
+
+
+## ## ## ## ## ## ## ## ## ##
 # LEAVE-ONE-OUT CHECK    ####
 ## ## ## ## ## ## ## ## ## ##
 
