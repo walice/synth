@@ -7,6 +7,10 @@
 # Preamble
 # Functions
 # Data
+# .. Import indicators from WDI
+# .. Create outcome variables
+# .. Drop missing data and specific donors
+# .. Figures of summary statistics
 # Specification in Paper
 # .. Optimize over 1990-2001, 1990 baseline, no covariates
 # Synth
@@ -59,19 +63,20 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/Results") # Alice laptop
-#setwd("~/Box Sync/LepissierMildenberger/Synth/Results") # Matto
-setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/Results") # Alice work
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
+#setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
 library(gghighlight)
 library(gridExtra)
 library(plyr)
-library(readstata13)
 library(stargazer)
 library(Synth)
 library(tidyverse)
 #devtools::install_github('xuyiqing/tjbal')
 library(tjbal)
+library(WDI)
+library(xlsx)
 
 
 
@@ -80,22 +85,39 @@ library(tjbal)
 ## ## ## ## ## ## ## ## ## ##
 
 whodat <- function(id) {
-  country <- data[which(data$countryid == id), 2][1]
+  country <- data %>%
+    filter(countryid == id) %>%
+    distinct(countrycode) %>%
+    pull
+  return(country)
+}
+
+whodis <- function(ISO) {
+  country <- data %>%
+    filter(countrycode == ISO) %>%
+    distinct(country) %>%
+    pull
   return(country)
 }
 
 whatname <- function(id) {
-  country <- data[which(data$countryid == id), 3][1]
+  country <- data %>%
+    filter(countryid == id) %>%
+    distinct(country) %>%
+    pull
   return(country)
 }
 
 whichnum <- function(ISO) {
-  code <- data[which(data$countrycode == ISO), 1][1]
-  return(code)
+  num <- data %>%
+    filter(countrycode == ISO) %>%
+    distinct(countryid) %>%
+    pull
+  return(num)
 }
 
 whoder <- function() {
-  unique(data$countrycode)
+  unique(data$country)
 }
 
 
@@ -104,58 +126,123 @@ whoder <- function() {
 # DATA                   ####
 ## ## ## ## ## ## ## ## ## ##
 
-data <- read.dta13("WDI.dta")
-whoder()
+codes <- read.xlsx2("Data/Codes_Masterlist.xlsx", sheetName = "Codes") %>%
+  mutate_all(as.character)
 
+
+# .. Import indicators from WDI ####
+countries <- codes %>%
+  filter(WB_Income_Group_Code == "HIC") %>%
+  distinct(ISO3166.2) %>%
+  pull
+
+indicators <- c("EN.ATM.CO2E.KT", # CO2 emissions (kt)
+                "EN.ATM.CO2E.PC", # CO2 emissions (metric tons per capita)
+                "NY.GDP.PCAP.KD", # GDP per capita (constant 2010 US$)
+                "NY.GDP.PCAP.KD.ZG", # GDP per capita growth (annual %)
+                "NY.GDP.MKTP.KD.ZG", # GDP growth (annual %)
+                "EG.IMP.CONS.ZS", # Energy imports, net (% of energy use)
+                "EG.FEC.RNEW.ZS", # Renewable energy consumption (% of total final energy consumption)
+                "EG.USE.COMM.FO.ZS", # Fossil fuel energy consumption (% of total)
+                "GC.TAX.TOTL.GD.ZS", # Tax revenue (% of GDP)
+                "EG.GDP.PUSE.KO.PP.KD", # GDP per unit of energy use (constant 2011 PPP $ per kg of oil equivalent)
+                "NY.GDP.TOTL.RT.ZS", # Total natural resources rents (% of GDP)
+                "SE.XPD.TOTL.GD.ZS", # Government expenditure on education, total (% of GDP)
+                "EG.ELC.RNEW.ZS", # Renewable electricity output (% of total electricity output)
+                "EG.USE.PCAP.KG.OE", # Energy use (kg of oil equivalent per capita)
+                "TX.VAL.FUEL.ZS.UN", # Fuel exports (% of merchandise exports)
+                "NE.EXP.GNFS.ZS", # Exports of goods and services (% of GDP)
+                "NE.IMP.GNFS.ZS" # Imports of goods and services (% of GDP)
+                )
+
+# data <- WDI(country = countries, indicator = indicators)
+# save(data, file = "Data/data.Rdata")
+load("Data/data.Rdata")
+
+data <- left_join(data, codes %>% select(ISO3166.3, Country),
+                  by = c("country" = "Country")) %>%
+  rename(countrycode = ISO3166.3) %>%
+  select(-iso2c) %>%
+  mutate(countryid = group_indices(., countrycode)) %>%
+  select(countryid, countrycode, country, year, everything()) %>%
+  arrange(countryid)
+
+countries <- unique(data$countrycode)
+OECD <- codes %>%
+  filter(OECD == "1") %>%
+  distinct(ISO3166.3) %>%
+  pull
+
+OECD[which(OECD %in% countries == FALSE)]
+# Mexico and Turkey are OECD countries but not high income.
+
+
+# .. Create outcome variables ####
 # Rescale emissions to 1990 
 data <- left_join(data, data %>%
-               group_by(countryid) %>%
-               filter(year == 1990) %>%
-               select(countryid, baseline = en_atm_co2e_kt) %>%
-               ungroup(),
+                    group_by(countryid) %>%
+                    filter(year == 1990) %>%
+                    select(countryid, baseline = EN.ATM.CO2E.KT) %>%
+                    ungroup(),
              by = "countryid") %>%
-  mutate(rescaled1990 = en_atm_co2e_kt/baseline)
+  mutate(rescaled1990 = EN.ATM.CO2E.KT/baseline)
+attr(data$baseline, "label") <- "CO2 emissions (kt) in 1990"
+attr(data$rescaled1990, "label") <- NULL
 
 # Emissions as difference in log levels
-data$logdiff <- log(data$en_atm_co2e_kt/data$baseline)
+data$logdiff <- log(data$EN.ATM.CO2E.KT/data$baseline)
+attr(data$logdiff, "label") <- NULL
 
-# Missing data
-nmiss <- ddply(data, "countryid", summarize,
-               gdp.missing = sum(is.na(ny_gdp_pcap_kd)),
+
+# .. Drop missing data and specific donors ####
+nmiss <- ddply(data, "countrycode", summarize,
                co2.missing = sum(is.na(rescaled1990)),
-               energyimports.missing = sum(is.na(eg_imp_cons_zs)),
-               renewablecons.missing = sum(is.na (eg_fec_rnew_zs)),
-               FFconsumption.missing = sum(is.na(eg_use_comm_fo_zs)),
-               taxrevenuegdp.missing = sum(is.na(gc_tax_totl_gd_zs)),
-               gdpperenergyu.missing = sum(is.na(eg_gdp_puse_ko_pp_kd)),
-               naturresrents.missing = sum(is.na(ny_gdp_totl_rt_zs)),
-               gvtexpendeduc.missing = sum(is.na(se_xpd_totl_gd_zs)),
-               gdpgrowthannu.missing = sum(is.na(ny_gdp_mktp_kd_zg)),
-               renewableelec.missing = sum(is.na(eg_elc_rnew_zs)),
-               energyuseinkg.missing = sum(is.na(eg_use_pcap_kg_oe)),
-               fuelexportspc.missing = sum(is.na(tx_val_fuel_zs_un)))
+               co2pc.missing = sum(is.na(EN.ATM.CO2E.PC)),
+               gdppc.missing = sum(is.na(NY.GDP.PCAP.KD)),
+               gdppcgrowth.missing = sum(is.na(NY.GDP.PCAP.KD.ZG)),
+               gdpgrowth.missing = sum(is.na(NY.GDP.MKTP.KD.ZG)),
+               energyimports.missing = sum(is.na(EG.IMP.CONS.ZS)),
+               renewablecons.missing = sum(is.na (EG.FEC.RNEW.ZS)),
+               FFconsumption.missing = sum(is.na(EG.USE.COMM.FO.ZS)),
+               taxrevenuegdp.missing = sum(is.na(GC.TAX.TOTL.GD.ZS)),
+               gdpperenergyu.missing = sum(is.na(EG.GDP.PUSE.KO.PP.KD)),
+               naturresrents.missing = sum(is.na(NY.GDP.TOTL.RT.ZS)),
+               gvtexpendeduc.missing = sum(is.na(SE.XPD.TOTL.GD.ZS)),
+               renewableelec.missing = sum(is.na(EG.ELC.RNEW.ZS)),
+               energyuseinkg.missing = sum(is.na(EG.USE.PCAP.KG.OE)),
+               fuelexportspc.missing = sum(is.na(TX.VAL.FUEL.ZS.UN)),
+               exportsgdp.missing = sum(is.na(NE.EXP.GNFS.ZS)),
+               importsgdp.missing = sum(is.na(NE.IMP.GNFS.ZS)))
 
-missing <- subset(nmiss, (nmiss$gdp.missing > 20)
-                     & (nmiss$energyimports.missing > 12)
-                     & (nmiss$renewablecons.missing > 20)
-                     & (nmiss$FFconsumption.missing > 12)
-                     & (nmiss$taxrevenuegdp.missing > 20)
-                     & (nmiss$gdpperenergyu.missing > 12)
-                     & (nmiss$naturresrents.missing > 20)
-                     & (nmiss$gvtexpendeduc.missing > 20)
-                     & (nmiss$gdpgrowthannu.missing > 20)
-                     & (nmiss$renewableelec.missing > 20)
-                     & (nmiss$energyuseinkg.missing > 20)
-                     & (nmiss$fuelexportspc.missing > 20)
-                     | (nmiss$co2.missing > 4))
+range(data$year)
 
-missing <- t(missing[1])
-missing
+missing <- subset(nmiss, 
+                  co2.missing > 20 
+                  & co2pc.missing > 20
+                  & gdppc.missing > 20
+                  & gdppcgrowth.missing > 20
+                  & gdpgrowth.missing > 20
+                  & energyimports.missing > 12
+                  & renewablecons.missing > 20
+                  & FFconsumption.missing > 12
+                  & taxrevenuegdp.missing > 20
+                  & gdpperenergyu.missing > 12
+                  & naturresrents.missing > 20
+                  & gvtexpendeduc.missing > 20
+                  & renewableelec.missing > 20
+                  & energyuseinkg.missing > 20
+                  & fuelexportspc.missing > 20
+                  & exportsgdp.missing > 20
+                  & importsgdp.missing > 20)
+
+missing <- missing %>% 
+  select(countrycode) %>%
+  pull
 for (i in 1:length(missing)){
-  print(whodat(missing[i]))
+  print(whodis(missing[i]))
 }
 
-data <- subset(data, !(countryid %in% missing))
+data <- subset(data, !(countrycode %in% missing))
 whoder()
 
 scandis <- c("DNK", "NLD", "NOR", "SWE")
@@ -177,78 +264,70 @@ whoder()
 # whodat(23)
 # data <- subset(data, !(countryid %in% c(3, 23)))
 
-whichnum("MEX")
-whichnum("LUX") # Pre-treatment trend is bonkers. If removed, optimization over longer period buggers.
-# data <- subset(data, !(countryid %in% c(23)))
+whichnum("LUX") 
+# Pre-treatment trend is bonkers. If removed, optimization over longer period buggers.
+# data <- subset(data, !(countryid %in% c(47)))
 
-UK <- subset(data, (countrycode %in% c("GBR")))
 
-# Emissions per capita in OECD
-pdf("../Figures/CO2 emissions in sample.pdf", 
-    height = 4.5, width = 6)
-ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = CO2_emissions_PC, col = countryname)) + 
+# .. Figures of summary statistics ####
+# Emissions per capita in sample
+ggplot(data %>% filter(countrycode != "GBR"), 
+       aes(x = year, y = EN.ATM.CO2E.PC, col = country)) + 
   geom_line() +
-  xlab("Year") + ylab(expression(paste("CO"[2], " emissions per capita"))) +
+  xlab("Year") + 
+  ylab(expression(paste("CO"[2], " emissions per capita"))) +
   ggtitle("Emissions trends in the United Kingdom and donor pool") +
-  geom_line(data = data[data$countrycode == "GBR",], 
-            aes(x = year, y = CO2_emissions_PC, col = "United Kingdom"), size = 1.5) +
-  theme(legend.position="bottom", legend.title = element_blank())
-dev.off()
+  geom_line(data = data %>% filter(countrycode == "GBR"), 
+            aes(x = year, y = EN.ATM.CO2E.PC, col = "United Kingdom"), size = 1.5) +
+  theme(legend.position = "none")
+
+# Emissions relative to 1990 in sample
+ggplot(data %>% filter(countrycode != "GBR"), 
+       aes(x = year, y = rescaled1990, col = country)) + 
+  geom_line() +
+  xlab("Year") + 
+  ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
+  ggtitle("Emissions trends in the United Kingdom and donor pool") +
+  geom_line(data = data %>% filter(countrycode == "GBR"), 
+            aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
+  theme(legend.position = "none")
 
 # Emissions relative to 1990 in effective sample
-pdf("../Figures/CO2 emissions in effective sample.pdf", 
+pdf("../Figures/CO2 emissions (1990) in effective sample.pdf", 
     height = 4.5, width = 6)
 ggplot(data %>% filter(countrycode == "JPN" |
                          countrycode == "FRA" |
                          countrycode == "LUX" |
                          countrycode == "HUN" |
                          countrycode == "POL"), 
-       aes(x = year, y = rescaled1990, col = countryname)) + 
+       aes(x = year, y = rescaled1990, col = country)) + 
   geom_line() +
-  xlab("Year") + ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
+  xlab("Year") + 
+  ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
   ggtitle("Emissions trends in the United Kingdom and effective sample") +
-  geom_line(data = data[data$countrycode == "GBR",], 
+  geom_line(data = data %>% filter(countrycode == "GBR"), 
             aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
-  theme(legend.position="bottom", legend.title = element_blank()) +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
   xlim(1990, 2010)
 dev.off()
 
-# Emissions relative to 1990 in OECD
-pdf("../Figures/CO2 emissions (1990) in sample.pdf", 
-    height = 4.5, width = 6)
-ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = rescaled1990, col = countryname)) + 
+# Zooming in emissions per capita in sample
+ggplot(data[which(!data$countrycode == "GBR" 
+                  & data$EN.ATM.CO2E.PC >= 5 
+                  & data$EN.ATM.CO2E.PC <= 15),], 
+       aes(x = year, y = EN.ATM.CO2E.PC, col = country)) + 
   geom_line() +
-  xlab("Year") + ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
+  xlab("Year") + 
+  ylab(expression(paste("CO"[2], " emissions per capita"))) +
   ggtitle("Emissions trends in the United Kingdom and donor pool") +
-  geom_line(data = data[data$countrycode == "GBR",], 
-            aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
-  theme(legend.position="bottom", legend.title = element_blank())
-dev.off()
-
-# Emissions relative to 1990 (log difference) in OECD
-pdf("../Figures/CO2 emissions (1990 log diff) in sample.pdf", 
-    height = 4.5, width = 6)
-ggplot(data[!data$countrycode == "GBR",], aes(x = year, y = logdiff, col = countryname)) + 
-  geom_line() +
-  xlab("Year") + ylab(expression(paste("CO"[2], " emissions against 1990 baseline (log difference)"))) +
-  ggtitle("Emissions trends in the United Kingdom and donor pool") +
-  geom_line(data = data[data$countrycode == "GBR",], 
-            aes(x = year, y = logdiff, col = "United Kingdom"), size = 1.5) +
-  theme(legend.position="bottom", legend.title = element_blank())
-dev.off()
-
-# Zooming in, emissions per capita in OECD
-ggplot(data[which(!data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data$CO2_emissions_PC <= 15),], 
-       aes(x = year, y = CO2_emissions_PC, col = countryname)) + 
-  geom_line() +
-  xlab("Year") + ylab(expression(paste("CO"[2], " emissions per capita"))) +
-  ggtitle("Emissions trends in the United Kingdom and donor pool") +
-  geom_line(data = data[which(data$countrycode == "GBR" & data$CO2_emissions_PC >= 5 & data$CO2_emissions_PC <= 15),], 
-            aes(x = year, y = CO2_emissions_PC, col = "United Kingdom"), size = 1.5) +
-  theme(legend.position="bottom", legend.title = element_blank()) +
+  geom_line(data = data[which(data$countrycode == "GBR" 
+                              & data$EN.ATM.CO2E.PC >= 5 
+                              & data$EN.ATM.CO2E.PC <= 15),], 
+            aes(x = year, y = EN.ATM.CO2E.PC, col = "United Kingdom"), size = 1.5) +
+  theme(legend.position = "none") +
   scale_y_continuous(labels = function(x) round(as.numeric(x), 0)) 
 
-rm(missing, nmiss, UK, i, scandis)
+rm(codes, countries, indicators, missing, nmiss, i, scandis, OECD)
 
 
 
@@ -1475,7 +1554,8 @@ data <- data %>%
 # .. Mean balancing with intercept shift ####
 mbal.out <- tjbal(data = data, Y = "rescaled1990", D = "treat", 
                   X.avg.time = list(c(1990:2000)),
-                  index = c("countrycode","year"), kernel = FALSE, demean = TRUE)
+                  index = c("countrycode","year"), kernel = FALSE, 
+                  demean = TRUE)
 print(mbal.out)
 
 # Set of time periods
