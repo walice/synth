@@ -69,6 +69,8 @@ setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
 library(devtools)
 library(gghighlight)
 library(gridExtra)
+library(kableExtra)
+library(Matching)
 library(plyr)
 library(stargazer)
 library(Synth)
@@ -85,26 +87,26 @@ library(xlsx)
 ## ## ## ## ## ## ## ## ## ##
 
 whodat <- function(id) {
-  country <- data %>%
-    filter(countryid == id) %>%
-    distinct(countrycode) %>%
-    pull
+  country <- NA
+  for (i in 1:length(id)){
+    country[i] <- unique(data[which(data$countryid == id[i]), "countrycode"])
+  }
   return(country)
 }
 
 whodis <- function(ISO) {
-  country <- data %>%
-    filter(countrycode == ISO) %>%
-    distinct(country) %>%
-    pull
+  country <- NA
+  for (i in 1:length(ISO)){
+    country[i] <- unique(data[which(data$countrycode == ISO[i]), "country"])
+  }
   return(country)
 }
 
 whatname <- function(id) {
-  country <- data %>%
-    filter(countryid == id) %>%
-    distinct(country) %>%
-    pull
+  country <- NA
+  for (i in 1:length(id)){
+    country[i] <- unique(data[which(data$countryid == id[i]), "country"])
+  }
   return(country)
 }
 
@@ -196,7 +198,7 @@ attr(data$logdiff, "label") <- NULL
 
 # .. Drop missing data and specific donors ####
 nmiss <- ddply(data, "countrycode", summarize,
-               co2.missing = sum(is.na(rescaled1990)),
+               co2.missing = sum(is.na(EN.ATM.CO2E.KT)),
                co2pc.missing = sum(is.na(EN.ATM.CO2E.PC)),
                gdppc.missing = sum(is.na(NY.GDP.PCAP.KD)),
                gdppcgrowth.missing = sum(is.na(NY.GDP.PCAP.KD.ZG)),
@@ -217,23 +219,24 @@ nmiss <- ddply(data, "countrycode", summarize,
 range(data$year)
 
 missing <- subset(nmiss, 
-                  co2.missing > 20 
-                  & co2pc.missing > 20
-                  & gdppc.missing > 20
-                  & gdppcgrowth.missing > 20
-                  & gdpgrowth.missing > 20
-                  & energyimports.missing > 12
-                  & renewablecons.missing > 20
-                  & FFconsumption.missing > 12
-                  & taxrevenuegdp.missing > 20
-                  & gdpperenergyu.missing > 12
-                  & naturresrents.missing > 20
-                  & gvtexpendeduc.missing > 20
-                  & renewableelec.missing > 20
-                  & energyuseinkg.missing > 20
-                  & fuelexportspc.missing > 20
-                  & exportsgdp.missing > 20
-                  & importsgdp.missing > 20)
+                  (co2.missing > 45) | (
+                    co2pc.missing > 20
+                    & gdppc.missing > 20
+                    & gdppcgrowth.missing > 12
+                    & gdpgrowth.missing > 12
+                    & energyimports.missing > 12
+                    & renewablecons.missing > 20
+                    & FFconsumption.missing > 12
+                    & taxrevenuegdp.missing > 20
+                    & gdpperenergyu.missing > 12
+                    & naturresrents.missing > 10
+                    & gvtexpendeduc.missing > 20
+                    & renewableelec.missing > 20
+                    & energyuseinkg.missing > 12
+                    & fuelexportspc.missing > 20
+                    & exportsgdp.missing > 20
+                    & importsgdp.missing > 20)
+                )
 
 missing <- missing %>% 
   select(countrycode) %>%
@@ -242,6 +245,14 @@ for (i in 1:length(missing)){
   print(whodis(missing[i]))
 }
 
+data <- subset(data, !(countrycode %in% missing))
+whoder()
+
+missing <- data %>% 
+  filter(year >= 1990 & year < 2005) %>%
+  filter(is.na(EN.ATM.CO2E.PC)) %>%
+  distinct(countrycode) %>%
+  pull
 data <- subset(data, !(countrycode %in% missing))
 whoder()
 
@@ -336,12 +347,15 @@ rm(codes, countries, indicators, missing, nmiss, i, scandis, OECD)
 ## ## ## ## ## ## ## ## ## ##
 
 # .. Optimize over 1990-2001, 1990 baseline, no covariates ####
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-control.units <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-control.units
-for (i in 1:length(control.units)){
-  print(whodat(control.units[i]))
-}
+treated.unit <- data %>%
+  filter(countrycode == "GBR") %>%
+  distinct(countryid) %>%
+  pull
+control.units <- data %>%
+  filter(countrycode != "GBR") %>%
+  distinct(countryid) %>%
+  pull %>% t
+whatname(control.units)
 
 choose.time.predictors <- 1990:2001
 
@@ -351,14 +365,14 @@ dataprep.out <-
            predictors.op = NULL,
            time.predictors.prior = choose.time.predictors,
            special.predictors = list(
-             list("rescaled1990", 1991:1992, "mean"),
-             list("rescaled1990", 1993:1994, "mean"),
-             list("rescaled1990", 1995:1996, "mean"),
-             list("rescaled1990", 1997:1998, "mean"),
-             list("rescaled1990", 1999:2000, "mean")),
-           dependent = "rescaled1990",
+             list("EN.ATM.CO2E.PC", 1991:1992, "mean"),
+             list("EN.ATM.CO2E.PC", 1993:1994, "mean"),
+             list("EN.ATM.CO2E.PC", 1995:1996, "mean"),
+             list("EN.ATM.CO2E.PC", 1997:1998, "mean"),
+             list("EN.ATM.CO2E.PC", 1999:2000, "mean")),
+           dependent = "EN.ATM.CO2E.PC",
            unit.variable = "countryid",
-           unit.names.variable = "countryname",
+           unit.names.variable = "country",
            time.variable = "year",
            treatment.identifier = treated.unit,
            controls.identifier = c(control.units),
@@ -372,11 +386,11 @@ dataprep.out$X1
 dataprep.out$Z1
 
 # Store specification details
-synth.spec <- list(treated = dataprep.out$tag[["treatment.identifier"]],
-                   donor.pool = dataprep.out$tag[["controls.identifier"]],
+synth.spec <- list(treated = whatname(dataprep.out$tag[["treatment.identifier"]]),
+                   donor.pool = whatname(dataprep.out$tag[["controls.identifier"]]),
                    predictors = rownames(dataprep.out$X1),
                    time.optimize = dataprep.out$tag[["time.optimize.ssr"]])
-capture.output(synth.spec, file = "Specification.txt")
+capture.output(synth.spec, file = "Results/Specification.txt")
 
 
 
@@ -409,7 +423,7 @@ synth.tables$tab.w
 # .. Export results ####
 results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
                 synth.tables$tab.w)
-capture.output(results, file = "Results Specification.txt")
+capture.output(results, file = "Results/Results Specification.txt")
 
 
 # Plot emissions trajectories in the UK and in the synthetic control
@@ -417,11 +431,10 @@ path.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions relative to 1990",
           Xlab = "Year",
-          #Ylim = c(0.9, 1.1),
-          #Ylim = range(dataprep.out$Y1plot, dataprep.out$Y0plot %*% synth.out$solution.w),
+          Ylim = range(dataprep.out$Y1plot, dataprep.out$Y0plot %*% synth.out$solution.w),
           Main = "Observed and Synthetic Counterfactual Emissions",
           Legend = c("United Kingdom","Synthetic UK"),
-          Legend.position = "bottomright")
+          Legend.position = "topright")
 abline(v = 2001, lty = 2)
 
 # Plot gaps in outcomes between the UK and the synthetic control
@@ -429,7 +442,6 @@ gaps.plot(synth.res = synth.out,
           dataprep.res = dataprep.out,
           Ylab = "CO2 emissions relative to 1990",
           Xlab = "Year",
-          #Ylim = range(gaps),
           Main = "Gap between Treated and Synthetic Control")
 abline(v = 2001, lty = 2)
 
@@ -462,6 +474,36 @@ gaps.UK <- Y1plot.UK - synth.UK
 colnames(gaps.UK) <- "GBR"
 
 
+# .. Balance tests ####
+# Define pre-treatment period in gaps
+gap.start <- 1
+gap.end.pre <- which(rownames(placebo.results) == "2001")
+
+# Mean Square Prediction Error Pre-Treatment
+pre.MSE <- mean(gaps.UK[gap.start:gap.end.pre, ]^2)
+pre.MSE
+# 0.01458193
+
+# Extract pre-treatment outcome values in treated unit and synthetic counterpart
+preT.UK <- Y1plot.UK[gap.start:gap.end.pre]
+preT.synth <- synth.UK[gap.start:gap.end.pre]
+
+# Two-sample t test
+t.test(preT.UK, preT.synth)
+p.val.t <- t.test(preT.UK, preT.synth)$p.value
+
+# Kolmogorov Smirnov test
+ks.test(preT.UK, preT.synth)
+p.val.KS <- ks.test(preT.UK, preT.synth)$p.value
+
+# QQ statistics
+qqstats <- unlist(qqstats(preT.UK, preT.synth))
+
+# Export balance tests
+results <- kable(cbind(p.val.t, p.val.KS, t(qqstats)), format = "rst")
+capture.output(results, file = "Results/Balance Specification.txt")
+
+
 # .. Recreating built-in Synth graph for paths ####
 pdf("../Figures/Emissions paths in treated and synth.pdf", 
     height = 4.5, width = 6)
@@ -472,10 +514,11 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, Y1plot.UK, 
      type = "l", col = "royalblue4", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1), 
+     xlim = range(years), 
+     #ylim = c(0.9,1.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     ylab = expression(paste("CO"[2], " emissions per capita")),
      main = "Observed and Synthetic Counterfactual Emissions",
      frame.plot = FALSE, axes = F)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
@@ -503,10 +546,10 @@ par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, gaps.UK, 
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = range(gaps.UK), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     ylab = expression(paste("CO"[2], " emissions per capita")),
      main = "Gap between Treated and Synthetic Control",
      frame.plot = FALSE, axes = F)
 axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
@@ -525,73 +568,64 @@ dev.off()
 # PLACEBO LOOPS          ####
 ## ## ## ## ## ## ## ## ## ##
 
-countries <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-countries
-for (i in 1:length(countries)){
-  print(whodat(countries[i]))
-}
+placebos <- data %>%
+  filter(countrycode != "GBR") %>%
+  distinct(countryid) %>%
+  pull %>% t
+whatname(placebos)
 
-placebos <- c(countries)
+placebos <- placebos[which(placebos != 52)]
+# Drop Malta because SVD fails
 
-# for (i in 1:length(placebos)){
-#   print(i)
-#   print(placebos[i])
-#   placebocontrol.units <- c(countries)[-i]
-#   print(placebocontrol.units)
-# }
-
-placebo.names <- NA
-for (i in 1:length(countries)){
-placebo.names[i] <- whodat(countries[i])
-}
-placebo.names
-
-store.gaps <- matrix(NA, length(1990:2005), length(countries))
-colnames(store.gaps) <- placebo.names
+store.gaps <- matrix(NA, length(years), length(placebos))
+colnames(store.gaps) <- whodat(placebos)
 store.gaps
 
-store.obs <- matrix(NA, length(1990:2005), length(countries))
-colnames(store.obs) <- placebo.names
+store.obs <- matrix(NA, length(years), length(placebos))
+colnames(store.obs) <- whodat(placebos)
 
-store.synth <- matrix(NA, length(1990:2005), length(countries))
-colnames(store.synth) <- placebo.names
-
+store.synth <- matrix(NA, length(years), length(placebos))
+colnames(store.synth) <- whodat(placebos)
 
 for (i in 1:length(placebos)){
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
-             list("rescaled1990", 1991:1992, "mean"),
-             list("rescaled1990", 1993:1994, "mean"),
-             list("rescaled1990", 1995:1996, "mean"),
-             list("rescaled1990", 1997:1998, "mean"),
-             list("rescaled1990", 1999:2000, "mean")),
-           dependent = "rescaled1990",
-           unit.variable = "countryid",
-           unit.names.variable = "countryname",
-           time.variable = "year",
-           treatment.identifier = placebos[i],
-           controls.identifier = placebos[-i],
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1990:2005)
+  dataprep.out <-
+    dataprep(foo = data,
+             predictors = NULL,
+             predictors.op = NULL,
+             time.predictors.prior = choose.time.predictors,
+             special.predictors = list(
+               list("EN.ATM.CO2E.PC", 1991:1992, "mean"),
+               list("EN.ATM.CO2E.PC", 1993:1994, "mean"),
+               list("EN.ATM.CO2E.PC", 1995:1996, "mean"),
+               list("EN.ATM.CO2E.PC", 1997:1998, "mean"),
+               list("EN.ATM.CO2E.PC", 1999:2000, "mean")),
+             dependent = "EN.ATM.CO2E.PC",
+             unit.variable = "countryid",
+             unit.names.variable = "country",
+             time.variable = "year",
+             treatment.identifier = placebos[i],
+             controls.identifier = placebos[-i],
+             time.optimize.ssr = choose.time.predictors,
+             time.plot = 1990:2005)
 
 
-# .. Running Synth ####
-synth.out <- synth(data.prep.obj = dataprep.out,
-                   method = "BFGS")
+  # .. Running Synth ####
+  synth.out <- synth(data.prep.obj = dataprep.out,
+                     method = "BFGS")
 
 
-# .. Store emissions path in treated unit and its synthetic counterpart ####
-store.obs[,i] <- dataprep.out$Y1plot
-store.synth[,i] <- dataprep.out$Y0plot %*% synth.out$solution.w
+  # .. Store emissions path in treated unit and its synthetic counterpart ####
+  store.obs[,i] <- dataprep.out$Y1plot
+  store.synth[,i] <- dataprep.out$Y0plot %*% synth.out$solution.w
 
 
-# .. Calculating annual gaps between the treated and its synthetic counterpart ####
-store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+  # .. Calculating annual gaps between the treated and its synthetic counterpart ####
+  store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
+
+save(store.obs, file = "Results/Placebo loops/store.obs.Rdata")
+save(store.synth, file = "Results/Placebo loops/store.synth.Rdata")
+save(store.gaps, file = "Results/Placebo loops/store.gaps.Rdata")
 
 
 # .. Emissions paths figures ####
@@ -599,14 +633,11 @@ store.obs <- cbind(store.obs, Y1plot.UK)
 store.synth <- cbind(store.synth, synth.UK)
 store.gaps <- cbind(store.gaps, gaps.UK)
 
-countries <- c(countries, "14")
-c.labels <- NA
-for (i in 1:length(countries)){
-  c.labels[i] <- whatname(countries[i])
-}
+countries <- c(placebos, treated.unit)
+c.labels <- whatname(countries)
 
 for (c in 1:length(countries)){
-  pdf(paste0("../Figures/Emissions paths in placebo and synth_", c.labels[c], ".pdf"), 
+  pdf(paste0("Figures/Emissions paths in placebo and synth_", c.labels[c], ".pdf"), 
     height = 4.5, width = 6)
   plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
   u <- par("usr") # The coordinates of the plot area
@@ -615,10 +646,11 @@ for (c in 1:length(countries)){
   par(new = TRUE, mgp = c(2, 1, 0))
   plot(years, store.obs[,c], 
        type = "l", col = "#014421", lwd = 2,
-       xlim = range(years), ylim = range(store.obs[,c], store.synth[,c]), 
+       xlim = range(years), 
+       ylim = range(store.obs[,c], store.synth[,c]), 
        las = 1, cex.axis = 0.8, tck = -0.05,
        xlab = "Year",
-       ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+       ylab = expression(paste("CO"[2], " emissions per capita")),
        main = "Observed and Synthetic Counterfactual Emissions",
        frame.plot = FALSE, axes = F)
   axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
@@ -637,37 +669,36 @@ for (c in 1:length(countries)){
 
 # .. Gaps figure ####
 placebo.results <- store.gaps
-rownames(placebo.results) <- c(choose.time.predictors, seq(2002, 2005, 1))
-placebo.results
 
 # Define pre-treatment period in gaps
 gap.start <- 1
 gap.end <- nrow(placebo.results)
-years <- c(choose.time.predictors, seq(2002, 2005, 1))
-gap.end.pre <- which(rownames(placebo.results)=="2001")
+gap.end.pre <- which(rownames(placebo.results) == "2001")
 
 # Mean Square Prediction Error Pre-Treatment
-mse <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
-UK.mse <- as.numeric(mse["GBR"])
+MSE <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
+UK.MSE <- as.numeric(MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
-placebo.results[, mse > 5*UK.mse]
-# Exclude AUT, BEL, CHE, CHL, ESP, FIN, FRA, GRC, HUN, IRL, ISL, ISR, JPN, KOR, LUX, MEX, NZL, POL, PRT, TUR
-placebo.results_5 <- placebo.results[, mse < 5*UK.mse]
-placebo.results_10 <- placebo.results[, mse < 10*UK.mse]
+colnames(placebo.results[, MSE > 5*UK.MSE])
+# Exclude ARE, BEL, BHR, BHS, BMU, BRB, BRN, CAN, FIN, 
+# FRO, GIB, GRL, HKG, KOR, LUX, NCL, OMN, QAT, SAU, SGP, 
+# SYC, TTO, URY, USA 
+placebo.results_5 <- placebo.results[, MSE < 5*UK.MSE]
+placebo.results_10 <- placebo.results[, MSE < 10*UK.MSE]
 
 # Plot
-pdf("../Figures/Gaps in emissions_placebo_all.pdf", 
+pdf("Figures/Gaps in emissions_placebo_all.pdf", 
     height = 4.5, width = 6)
 plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
 u <- par("usr") # The coordinates of the plot area
 rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
+plot(years, placebo.results[, which(colnames(placebo.results) == "GBR")],
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = range(placebo.results), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -683,9 +714,9 @@ abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
 text(1998, -0.0695, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(placebo.results)){
-  lines(years, placebo.results[gap.start:gap.end, i], col = "gray") 
+  lines(years, placebo.results[, i], col = "gray") 
 }
-lines(years, placebo.results[gap.start:gap.end, which(colnames(placebo.results)=="GBR")],
+lines(years, placebo.results[, which(colnames(placebo.results)=="GBR")],
       type = "l", col = "darkorchid", lwd = 2)
 dev.off()
 
@@ -697,10 +728,10 @@ u <- par("usr") # The coordinates of the plot area
 rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, placebo.results_5[gap.start:gap.end, which(colnames(placebo.results_5)=="GBR")],
+plot(years, placebo.results_5[, which(colnames(placebo.results_5)=="GBR")],
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = range(placebo.results_5), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -716,9 +747,9 @@ abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
 text(1998, -0.0695, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(placebo.results_5)){
-  lines(years, placebo.results_5[gap.start:gap.end, i], col = "gray") 
+  lines(years, placebo.results_5[, i], col = "gray") 
 }
-lines(years, placebo.results_5[gap.start:gap.end, which(colnames(placebo.results_5)=="GBR")],
+lines(years, placebo.results_5[, which(colnames(placebo.results_5)=="GBR")],
       type = "l", col = "darkorchid", lwd = 2)
 dev.off()
 
@@ -733,7 +764,7 @@ par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, placebo.results_10[gap.start:gap.end, which(colnames(placebo.results_10)=="GBR")],
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = range(placebo.results_10), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -749,35 +780,32 @@ abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
 text(1998, -0.0695, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(placebo.results_10)){
-  lines(years, placebo.results_10[gap.start:gap.end, i], col = "gray") 
+  lines(years, placebo.results_10[, i], col = "gray") 
 }
-lines(years, placebo.results_10[gap.start:gap.end, which(colnames(placebo.results_10)=="GBR")],
+lines(years, placebo.results_10[, which(colnames(placebo.results_10)=="GBR")],
       type = "l", col = "darkorchid", lwd = 2)
 dev.off()
 
 # How many control states remain?
 colnames(placebo.results_5)
-# 6 control states: AUS, CAN, ITA, USA
-
-# USA is the country outside of the distribution.
+# 28 control states
 
 
 # .. MSPE analysis ####
 placebo.results <- store.gaps
-rownames(placebo.results) <- c(choose.time.predictors, seq(2002, 2005, 1))
 
 # Mean Square Prediction Error Pre-Treatment
-pre.mse <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
-UK.pre.mse <- as.numeric(pre.mse["GBR"])
+pre.MSE <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
+UK.pre.MSE <- as.numeric(pre.MSE["GBR"])
 
 # Mean Square Prediction Error Post-Treatment
-gap.end.post <- which(rownames(placebo.results)=="2002")
-post.mse <- apply(placebo.results[gap.end.post:gap.end, ]^2, 2, mean)
-UK.post.mse <- as.numeric(post.mse["GBR"])
+gap.start.post <- which(rownames(placebo.results) == "2002")
+post.MSE <- apply(placebo.results[gap.start.post:gap.end, ]^2, 2, mean)
+UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Ratio of post-treatment MSPE to pre-treatment MSPE
-ratio.mse <- post.mse/pre.mse
-sort(ratio.mse)
+ratio.MSE <- post.MSE/pre.MSE
+sort(ratio.MSE)
 # For the UK, the post-treatment gap is 100 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
@@ -787,15 +815,15 @@ sort(ratio.mse)
 # Plot
 pdf("../Figures/MSPE Ratio.pdf", 
     height = 4.5, width = 6)
-cols <- ifelse(names(sort(ratio.mse)) == "GBR", "darkorchid", "grey")
-a <- barplot(sort(ratio.mse),
+cols <- ifelse(names(sort(ratio.MSE)) == "GBR", "darkorchid", "grey")
+a <- barplot(sort(ratio.MSE),
         xaxt = "n",
         yaxt = "n",
         col = cols,
         main = "Ratio of post-treatment MSPE to pre-treatment MSPE",
         cex.main = 0.9)
-labs <- names(sort(ratio.mse))
-lab.cols <- ifelse(names(sort(ratio.mse)) == "GBR", "darkorchid", "black")
+labs <- names(sort(ratio.MSE))
+lab.cols <- ifelse(names(sort(ratio.MSE)) == "GBR", "darkorchid", "black")
 text(a[,1], y = -2, 
      labels = labs, xpd = TRUE, srt = 60, adj = 1, cex = 0.7,
      col = lab.cols)
@@ -809,40 +837,29 @@ dev.off()
 # LEAVE-ONE-OUT CHECK    ####
 ## ## ## ## ## ## ## ## ## ##
 
-countries
-for (i in 1:length(countries)){
-  print(whodat(countries[i]))
-}
+treated.unit <- data %>%
+  filter(countrycode == "GBR") %>%
+  distinct(countryid) %>%
+  pull
+leaveoneout.controls <- data %>%
+  filter(countrycode != "GBR") %>%
+  distinct(countryid) %>%
+  pull %>% t
+whatname(leaveoneout.controls)
 
-# for (i in 1:length(countries)){
-#    print(countries[i])
-#    leaveoneout <- c(countries)[-i]
-#    print(leaveoneout)
-# }
-
-treated.unit <- data[which(data$countrycode == "GBR"), 1][1]
-leaveoneout.controls <- t(unique(subset(data, !(countrycode %in% c("GBR")))[1]))
-
-leaveoneout.names <- NA
-for (i in 1:length(leaveoneout.controls)){
-  leaveoneout.names[i] <- whodat(leaveoneout.controls[i])
-}
+leaveoneout.names <- whodat(leaveoneout.controls)
 leaveoneout.names <- append(leaveoneout.names, "Dropped", length(leaveoneout.names))
 leaveoneout.names
 
-store.gaps <- matrix(NA, length(1990:2005), length(countries))
-colnames(store.gaps) <- paste("No_", leaveoneout.names, sep = "")
+store.gaps <- matrix(NA, length(years), length(leaveoneout.names))
+colnames(store.gaps) <- paste0("No_", leaveoneout.names)
 store.gaps
-
-# for (i in 1:length(leaveoneout.controls)+1){
-#   print(i)
-# }
 
 nloops <- length(leaveoneout.controls)+1
 
 for (i in 1:nloops){
-controls.identifier = leaveoneout.controls[-i]
-print(controls.identifier)
+  controls.identifier = leaveoneout.controls[-i]
+  print(controls.identifier)
 }
 
 for (i in 1:nloops){
@@ -852,14 +869,14 @@ for (i in 1:nloops){
              predictors.op = NULL,
              time.predictors.prior = choose.time.predictors,
              special.predictors = list(
-               list("rescaled1990", 1991:1992, "mean"),
-               list("rescaled1990", 1993:1994, "mean"),
-               list("rescaled1990", 1995:1996, "mean"),
-               list("rescaled1990", 1997:1998, "mean"),
-               list("rescaled1990", 1999:2000, "mean")),
-             dependent = "rescaled1990",
+               list("EN.ATM.CO2E.PC", 1991:1992, "mean"),
+               list("EN.ATM.CO2E.PC", 1993:1994, "mean"),
+               list("EN.ATM.CO2E.PC", 1995:1996, "mean"),
+               list("EN.ATM.CO2E.PC", 1997:1998, "mean"),
+               list("EN.ATM.CO2E.PC", 1999:2000, "mean")),
+             dependent = "EN.ATM.CO2E.PC",
              unit.variable = "countryid",
-             unit.names.variable = "countryname",
+             unit.names.variable = "country",
              time.variable = "year",
              treatment.identifier = treated.unit,
              controls.identifier = leaveoneout.controls[-i],
@@ -867,42 +884,38 @@ for (i in 1:nloops){
              time.plot = 1990:2005)
 
 
-# .. Running Synth ####
-synth.out <- synth(data.prep.obj = dataprep.out,
-                     method = "BFGS")
+  # .. Running Synth ####
+  synth.out <- synth(data.prep.obj = dataprep.out,
+                       method = "BFGS")
 
 
-# .. Calculating annual gaps between the UK and its synthetic counterpart ####
-store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+  # .. Calculating annual gaps between the UK and its synthetic counterpart ####
+  store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
+
+save(store.gaps, file = "Results/Leave-one-out/storegaps.Rdata")
 
 
 # .. Leave-one-out figure ####
 leaveoneout.results <- store.gaps
-rownames(leaveoneout.results) <- c(choose.time.predictors, seq(2002, 2005, 1))
+rownames(leaveoneout.results) <- years
 leaveoneout.results
 
-# Define pre-treatment period in gaps
-gap.start <- 1
-gap.end <- nrow(leaveoneout.results)
-years <- c(choose.time.predictors, seq(2002, 2005, 1))
-gap.end.pre <- which(rownames(placebo.results)=="2001")
-
 # Plot
-pdf("../Figures/Gaps in emissions_leave one out.pdf", 
+pdf("Figures/Gaps in emissions_leave one out.pdf", 
     height = 4.5, width = 6)
 plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
 u <- par("usr") # The coordinates of the plot area
 rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
 grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, leaveoneout.results[gap.start:gap.end, which(colnames(leaveoneout.results)=="No_Dropped")],
+plot(years, leaveoneout.results[, which(colnames(leaveoneout.results) == "No_Dropped")],
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = range(leaveoneout.results), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
+     ylab = expression(paste("CO"[2], " emissions per capita")),
      main = "Gap between Treated and Synthetic Control",
      frame.plot = FALSE, axes = F)
 mtext("Leave-one-out robustness check", side = 3, line = 0.4, font = 3)
@@ -915,13 +928,10 @@ abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.07, 2000.9, -0.07, length = 0.1, code = 2)
 text(1998, -0.0695, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(leaveoneout.results)){
-  lines(years, leaveoneout.results[gap.start:gap.end, i], col = "thistle") 
+  lines(years, leaveoneout.results[, i], col = "thistle") 
 }
-lines(years, leaveoneout.results[gap.start:gap.end, which(colnames(leaveoneout.results)=="No_Dropped")],
+lines(years, leaveoneout.results[, which(colnames(leaveoneout.results) == "No_Dropped")],
       type = "l", col = "darkorchid", lwd = 2)
-lines(years, leaveoneout.results[gap.start:gap.end, which(colnames(leaveoneout.results)=="No_LUX")],
-      type = "l", col = "darkorange")
-text(2004.1, -0.023, "No LUX", cex = 0.8, col = "darkorange")
 dev.off()
 
 
@@ -1758,7 +1768,6 @@ for (i in 1:ncol(placebo.results_10)){
 }
 lines(years, store.gaps[, which(colnames(store.gaps)=="GBR")],
       type = "l", col = "darkorchid", lwd = 2)
-
 
 
 
