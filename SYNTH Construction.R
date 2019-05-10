@@ -20,12 +20,8 @@
 # .. Weights for countries in the donor pool 
 # .. Export results
 # Generate Results    
-# .. Outcomes 
-# .. Recreating built-in Synth graph for paths 
-# .. Recreating built-in Synth graph for gaps 
-# Placebo for Single Country 
-# .. Running Synth 
-# .. Outcomes 
+# .. Outcomes
+# .. Balance tests
 # .. Recreating built-in Synth graph for paths 
 # .. Recreating built-in Synth graph for gaps 
 # Placebo Loops
@@ -33,7 +29,7 @@
 # .. Outcomes
 # .. Store emissions path in treated unit and its synthetic counterpart
 # .. Calculating annual gaps between the UK and its synthetic counterpart
-# .. Emissions paths figures
+# .. Emissions trajectories figure
 # .. Gaps figure
 # .. MSPE analysis
 # Leave-One-Out Check    
@@ -63,8 +59,8 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
+#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
 library(gghighlight)
@@ -132,9 +128,27 @@ codes <- read.xlsx2("Data/Codes_Masterlist.xlsx", sheetName = "Codes") %>%
   mutate_all(as.character)
 
 
+# .. Import emissions for Germany from CDIAC ####
+# Data for Germany prior to 1991 is missing from WDI.
+# WDI uses CDIAC as the raw data source, so go to CDIAC to import emissions prior to 1991.
+
+CDIAC <- read.csv("Data/nation.1751_2014.csv") %>%
+  select(Nation, Year, Emissions = Total.CO2.emissions.from.fossil.fuels.and.cement.production..thousand.metric.tons.of.C.) %>%
+  filter(Nation == "FORMER GERMAN DEMOCRATIC REPUBLIC" | Nation == "FEDERAL REPUBLIC OF GERMANY")
+
+CDIAC <- spread(CDIAC, Nation, Emissions) %>%
+  mutate(EN.ATM.CO2E.KT = (`FEDERAL REPUBLIC OF GERMANY` + `FORMER GERMAN DEMOCRATIC REPUBLIC`) * 3.667,
+         country = "Germany", iso2c = "DE") %>%
+  select(iso2c, country, year = Year, EN.ATM.CO2E.KT) %>%
+  filter(year >= 1960)
+
+
 # .. Import indicators from WDI ####
 countries <- codes %>%
-  filter(WB_Income_Group_Code == "HIC") %>%
+  filter(WB_Income_Group_Code == "HIC" | 
+           WB_Income_Group_Code == "UMC" |
+           OECD == 1 | 
+           Commonwealth == 1) %>%
   distinct(ISO3166.2) %>%
   pull
 
@@ -154,29 +168,54 @@ indicators <- c("EN.ATM.CO2E.KT", # CO2 emissions (kt)
                 "EG.USE.PCAP.KG.OE", # Energy use (kg of oil equivalent per capita)
                 "TX.VAL.FUEL.ZS.UN", # Fuel exports (% of merchandise exports)
                 "NE.EXP.GNFS.ZS", # Exports of goods and services (% of GDP)
-                "NE.IMP.GNFS.ZS" # Imports of goods and services (% of GDP)
+                "NE.IMP.GNFS.ZS", # Imports of goods and services (% of GDP)
+                "SP.POP.TOTL" # Population, total
                 )
 
 # data <- WDI(country = countries, indicator = indicators)
 # save(data, file = "Data/data.Rdata")
 load("Data/data.Rdata")
 
-data <- left_join(data, codes %>% select(ISO3166.3, Country),
-                  by = c("country" = "Country")) %>%
-  rename(countrycode = ISO3166.3) %>%
-  select(-iso2c) %>%
+data[which(data$country == "Germany" & data$year <= 1990), "EN.ATM.CO2E.KT"] <- CDIAC$EN.ATM.CO2E.KT
+data <- data %>%
+  mutate(EN.ATM.CO2E.PC = ifelse(country == "Germany" & year <= 1990, EN.ATM.CO2E.KT * 1000 / SP.POP.TOTL, EN.ATM.CO2E.PC))
+
+data <- left_join(data, codes %>% 
+                     select(ISO3166.2, ISO3166.3, Country) %>% 
+                     distinct(ISO3166.2, .keep_all = T),
+                   by = c("iso2c" = "ISO3166.2")) %>%
+  select(-c(iso2c, country)) %>%
+  rename(countrycode = ISO3166.3,
+         country = Country) %>%
   mutate(countryid = group_indices(., countrycode)) %>%
   select(countryid, countrycode, country, year, everything()) %>%
   arrange(countryid)
 
 countries <- unique(data$countrycode)
-OECD <- codes %>%
-  filter(OECD == "1") %>%
+
+HIC <- codes %>%
+  filter(WB_Income_Group_Code == "HIC") %>%
   distinct(ISO3166.3) %>%
   pull
 
-OECD[which(OECD %in% countries == FALSE)]
-# Mexico and Turkey are OECD countries but not high income.
+UMC <- codes %>%
+  filter(WB_Income_Group_Code == "UMC") %>%
+  distinct(ISO3166.3) %>%
+  pull
+
+OECD <- codes %>%
+  filter(OECD == 1) %>%
+  distinct(ISO3166.3) %>%
+  pull
+
+Commonwealth <- codes %>%
+  filter(Commonwealth == 1) %>%
+  distinct(ISO3166.3) %>%
+  pull
+
+data <- subset(data, countrycode %in% OECD)
+# data <- subset(data, countrycode %in% HIC | countrycode %in% OECD | countrycode %in% UMC)
+# data <- subset(data, countrycode %in% Commonwealth | countrycode %in% OECD)
 
 
 # .. Create outcome variables ####
@@ -184,19 +223,30 @@ OECD[which(OECD %in% countries == FALSE)]
 data <- left_join(data, data %>%
                     group_by(countryid) %>%
                     filter(year == 1990) %>%
-                    select(countryid, baseline = EN.ATM.CO2E.KT) %>%
+                    select(countryid, baseline1990 = EN.ATM.CO2E.KT) %>%
                     ungroup(),
              by = "countryid") %>%
-  mutate(rescaled1990 = EN.ATM.CO2E.KT/baseline)
-attr(data$baseline, "label") <- "CO2 emissions (kt) in 1990"
+  mutate(rescaled1990 = EN.ATM.CO2E.KT/baseline1990)
+attr(data$baseline1990, "label") <- "CO2 emissions (kt) in 1990"
 attr(data$rescaled1990, "label") <- NULL
 
-# Emissions as difference in log levels
-data$logdiff <- log(data$EN.ATM.CO2E.KT/data$baseline)
-attr(data$logdiff, "label") <- NULL
+# Rescale emissions to 2000 
+data <- left_join(data, data %>%
+                    group_by(countryid) %>%
+                    filter(year == 2000) %>%
+                    select(countryid, baseline2000 = EN.ATM.CO2E.KT) %>%
+                    ungroup(),
+                  by = "countryid") %>%
+  mutate(rescaled2000 = EN.ATM.CO2E.KT/baseline2000)
+attr(data$baseline2000, "label") <- "CO2 emissions (kt) in 2000"
+attr(data$rescaled1990, "label") <- NULL
 
 
 # .. Drop missing data and specific donors ####
+range(data$year)
+data <- data %>%
+  filter(year >= 1980)
+
 nmiss <- ddply(data, "countrycode", summarize,
                co2.missing = sum(is.na(EN.ATM.CO2E.KT)),
                co2pc.missing = sum(is.na(EN.ATM.CO2E.PC)),
@@ -216,41 +266,39 @@ nmiss <- ddply(data, "countrycode", summarize,
                exportsgdp.missing = sum(is.na(NE.EXP.GNFS.ZS)),
                importsgdp.missing = sum(is.na(NE.IMP.GNFS.ZS)))
 
-range(data$year)
+summary(nmiss)
 
 missing <- subset(nmiss, 
-                  (co2.missing > 45) | (
-                    co2pc.missing > 20
-                    & gdppc.missing > 20
-                    & gdppcgrowth.missing > 12
-                    & gdpgrowth.missing > 12
-                    & energyimports.missing > 12
-                    & renewablecons.missing > 20
-                    & FFconsumption.missing > 12
-                    & taxrevenuegdp.missing > 20
-                    & gdpperenergyu.missing > 12
+                  (co2.missing > 10) | (
+                    co2pc.missing > 10
+                    & gdppc.missing > 10
+                    & gdppcgrowth.missing > 10
+                    & gdpgrowth.missing > 10
+                    & energyimports.missing > 10
+                    & renewablecons.missing > 10
+                    & FFconsumption.missing > 10
+                    & taxrevenuegdp.missing > 10
+                    & gdpperenergyu.missing > 10
                     & naturresrents.missing > 10
-                    & gvtexpendeduc.missing > 20
-                    & renewableelec.missing > 20
-                    & energyuseinkg.missing > 12
-                    & fuelexportspc.missing > 20
-                    & exportsgdp.missing > 20
-                    & importsgdp.missing > 20)
+                    & gvtexpendeduc.missing > 10
+                    & renewableelec.missing > 10
+                    & energyuseinkg.missing > 10
+                    & fuelexportspc.missing > 10
+                    & exportsgdp.missing > 10
+                    & importsgdp.missing > 10)
                 )
 
 missing <- missing %>% 
   select(countrycode) %>%
   pull
-for (i in 1:length(missing)){
-  print(whodis(missing[i]))
-}
+whodis(missing)
 
 data <- subset(data, !(countrycode %in% missing))
 whoder()
 
 missing <- data %>% 
   filter(year >= 1990 & year < 2005) %>%
-  filter(is.na(EN.ATM.CO2E.PC)) %>%
+  filter(is.na(EN.ATM.CO2E.KT)) %>%
   distinct(countrycode) %>%
   pull
 data <- subset(data, !(countrycode %in% missing))
@@ -279,6 +327,8 @@ whichnum("LUX")
 # Pre-treatment trend is bonkers. If removed, optimization over longer period buggers.
 # data <- subset(data, !(countryid %in% c(47)))
 
+save(data, file = "Data/data_clean.Rdata")
+
 
 # .. Figures of summary statistics ####
 # Emissions per capita in sample
@@ -306,11 +356,12 @@ ggplot(data %>% filter(countrycode != "GBR"),
 # Emissions relative to 1990 in effective sample
 pdf("../Figures/CO2 emissions (1990) in effective sample.pdf", 
     height = 4.5, width = 6)
-ggplot(data %>% filter(countrycode == "JPN" |
-                         countrycode == "FRA" |
-                         countrycode == "LUX" |
-                         countrycode == "HUN" |
-                         countrycode == "POL"), 
+ggplot(data %>% filter(countrycode == "NRU" |
+                         countrycode == "ROU" |
+                         countrycode == "BEL" |
+                         countrycode == "FRO" |
+                         countrycode == "LIB" |
+                         countrycode == "LUX"), 
        aes(x = year, y = rescaled1990, col = country)) + 
   geom_line() +
   xlab("Year") + 
@@ -338,7 +389,7 @@ ggplot(data[which(!data$countrycode == "GBR"
   theme(legend.position = "none") +
   scale_y_continuous(labels = function(x) round(as.numeric(x), 0)) 
 
-rm(codes, countries, indicators, missing, nmiss, i, scandis, OECD)
+rm(codes, countries, indicators, missing, nmiss, i, scandis, HIC, UMC, OECD, Commonwealth, CDIAC)
 
 
 
@@ -365,12 +416,17 @@ dataprep.out <-
            predictors.op = NULL,
            time.predictors.prior = choose.time.predictors,
            special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1991:1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993:1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995:1996, "mean"),
-             list("EN.ATM.CO2E.PC", 1997:1998, "mean"),
-             list("EN.ATM.CO2E.PC", 1999:2000, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
+             list("rescaled1990", 1991, "mean"),
+             list("rescaled1990", 1992, "mean"),
+             list("rescaled1990", 1993, "mean"),
+             list("rescaled1990", 1994, "mean"),
+             list("rescaled1990", 1995, "mean"),
+             list("rescaled1990", 1996, "mean"),
+             list("rescaled1990", 1997, "mean"),
+             list("rescaled1990", 1998, "mean"),
+             list("rescaled1990", 1999, "mean"),
+             list("rescaled1990", 2000, "mean")),
+           dependent = "rescaled1990",
            unit.variable = "countryid",
            unit.names.variable = "country",
            time.variable = "year",
@@ -454,17 +510,17 @@ abline(v = 2001, lty = 2)
 # .. Outcomes ####
 names(dataprep.out)
 
-# Outcome variable in donor pool
-Y0plot.UK <- dataprep.out$Y0plot
+# Pre- and post-intervention periods
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
 
 # Outcome variable in treated unit
 Y1plot.UK <- dataprep.out$Y1plot
 
+# Outcome variable in donor pool
+Y0plot.UK <- dataprep.out$Y0plot
+
 # Weights applied to each country in the donor pool
 w.UK <- synth.out$solution.w
-
-# Pre- and post-intervention periods
-years <- c(choose.time.predictors, seq(2002, 2005, 1))
 
 # Outcome variable in synthetic unit
 synth.UK <- Y0plot.UK %*% w.UK
@@ -477,7 +533,7 @@ colnames(gaps.UK) <- "GBR"
 # .. Balance tests ####
 # Define pre-treatment period in gaps
 gap.start <- 1
-gap.end.pre <- which(rownames(placebo.results) == "2001")
+gap.end.pre <- which(rownames(gaps.UK) == "2001")
 
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- mean(gaps.UK[gap.start:gap.end.pre, ]^2)
@@ -515,7 +571,7 @@ par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, Y1plot.UK, 
      type = "l", col = "royalblue4", lwd = 2,
      xlim = range(years), 
-     #ylim = c(0.9,1.1), 
+     ylim = c(0.9, 1.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions per capita")),
@@ -628,7 +684,7 @@ save(store.synth, file = "Results/Placebo loops/store.synth.Rdata")
 save(store.gaps, file = "Results/Placebo loops/store.gaps.Rdata")
 
 
-# .. Emissions paths figures ####
+# .. Emissions trajectories figure ####
 store.obs <- cbind(store.obs, Y1plot.UK)
 store.synth <- cbind(store.synth, synth.UK)
 store.gaps <- cbind(store.gaps, gaps.UK)
@@ -1017,7 +1073,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1075,7 +1132,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1133,7 +1191,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1190,7 +1249,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1247,7 +1307,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1303,7 +1364,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1359,7 +1421,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1414,7 +1477,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1469,7 +1533,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1524,7 +1589,8 @@ grid (NULL, NULL, lty = 1, col = "seashell")
 par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, dataprep.out$Y1plot,
      type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), ylim = c(0.9,1.1),
+     xlim = range(years), 
+     ylim = c(0.9, 1.1),
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1660,7 +1726,7 @@ par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, gaps.mbal, 
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = c(-0.1, 0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1748,7 +1814,7 @@ par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, store.gaps[, which(colnames(store.gaps) == "GBR")],
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = c(-0.1, 0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
@@ -1831,7 +1897,7 @@ par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, leaveoneout.results[, which(colnames(leaveoneout.results)=="No_Dropped")],
      type = "l", col = "darkorchid", lwd = 2,
      xlim = range(years), 
-     ylim = c(-0.1,0.1), 
+     ylim = c(-0.1, 0.1), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions relative to 1990")),
