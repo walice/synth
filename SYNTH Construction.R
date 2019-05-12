@@ -23,6 +23,7 @@
 # .. Outcomes
 # .. Balance tests
 # .. Emissions trajectories figure
+# .. Convert emissions per capita
 # Placebo Loops
 # .. Running Synth
 # .. Outcomes
@@ -34,7 +35,17 @@
 # Leave-One-Out Check    
 # .. Running Synth 
 # .. Calculating annual gaps between the UK and its synthetic counterpart
-# .. Leave-one-out figure 
+# .. Leave-one-out figure
+# Carbon Leakage
+# .. Calculate emissions from transport sectors
+# .. Run on mobile emissions
+# .. Generate results
+# .. Emissions trajectories figure
+# .. Convert emissions per capita
+# .. Run on immobile emissions
+# .. Generate results
+# .. Emissions trajectories figure
+# .. Convert emissions per capita
 # Re-Assign Treatment Year
 # .. Treatment in 2001
 # .. Treatment in 2000
@@ -173,7 +184,8 @@ indicators <- c("EN.ATM.CO2E.KT", # CO2 emissions (kt)
                 "TX.VAL.FUEL.ZS.UN", # Fuel exports (% of merchandise exports)
                 "NE.EXP.GNFS.ZS", # Exports of goods and services (% of GDP)
                 "NE.IMP.GNFS.ZS", # Imports of goods and services (% of GDP)
-                "SP.POP.TOTL" # Population, total
+                "SP.POP.TOTL", # Population, total
+                "EN.CO2.TRAN.ZS" # CO2 emissions from transport (% of total fuel combustion)
                 )
 
 # data <- WDI(country = countries, indicator = indicators)
@@ -998,6 +1010,307 @@ lines(years, leaveoneout.results[, which(colnames(leaveoneout.results) == "No_Dr
 arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
 text(1998, -0.9, "CCP enacted", cex = 0.8)
 dev.off()
+
+
+
+## ## ## ## ## ## ## ## ## ## ##
+# CARBON LEAKAGE            ####
+## ## ## ## ## ## ## ## ## ## ##
+
+# .. Calculate emissions from transport sectors ####
+data <- data %>%
+  mutate(mobile = EN.ATM.CO2E.PC * EN.CO2.TRAN.ZS / 100,
+         immobile = EN.ATM.CO2E.PC * (1 - EN.CO2.TRAN.ZS / 100))
+missing <- data %>% 
+  filter(year >= 1990 & year <= 2005) %>%
+  filter(is.na(mobile) | is.na(immobile)) %>%
+  distinct(countrycode) %>%
+  as.matrix %>% t
+
+leakage <- subset(data, !(countrycode %in% missing))
+
+ggplot(leakage %>%
+         filter(year >= 1990 & year <= 2015),
+       aes(x = year, y = EN.CO2.TRAN.ZS, col = country)) +
+  geom_line()
+
+treated.unit <- leakage %>%
+  filter(countrycode == "GBR") %>%
+  distinct(countryid) %>%
+  pull
+control.units <- leakage %>%
+  filter(countrycode != "GBR") %>%
+  distinct(countryid) %>%
+  pull %>% t
+whatname(control.units)
+
+
+# .. Run on mobile emissions ####
+dataprep.out <-
+  dataprep(foo = leakage,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("mobile", 1990, "mean"),
+             list("mobile", 1991, "mean"),
+             list("mobile", 1992, "mean"),
+             list("mobile", 1993, "mean"),
+             list("mobile", 1994, "mean"),
+             list("mobile", 1995, "mean"),
+             list("mobile", 1996, "mean"),
+             list("mobile", 1997, "mean"),
+             list("mobile", 1998, "mean"),
+             list("mobile", 1999, "mean"),
+             list("mobile", 2000, "mean"),
+             list("mobile", 2001, "mean")),
+           dependent = "mobile",
+           unit.variable = "countryid",
+           unit.names.variable = "country",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1990:2005)
+
+# Running Synth
+synth.out <- synth(data.prep.obj = dataprep.out)
+
+# Export results
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results/Supplementary Information/Results mobile emissions.txt")
+donor.weights <- data.frame(synth.tab(dataprep.res = dataprep.out,
+                                      synth.res = synth.out,
+                                      round.digit = 10)$tab.w) %>%
+  select(Donor.country = unit.names, Donor.weight = w.weights) %>%
+  arrange(Donor.weight)
+
+# Plot
+pdf("Figures/Supplementary Information/Donor weights_mobile.pdf", 
+    height = 4.5, width = 6)
+par(mar = c(2, 6.1, 2, 2.1), las = 2)
+a <- barplot(donor.weights$Donor.weight,
+             xaxt = "n",
+             main = "Donor weights",
+             names.arg = donor.weights$Donor.country,
+             cex.main = 0.9,
+             horiz = T,
+             space = 1,
+             cex.names = 0.45,
+             offset = -0.005,
+             xlim = c(0, 0.25))
+axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
+axis(side = 1, at = seq(0, 0.25, by = 0.05), 
+     cex.axis = 0.5, tck = -0.01, 
+     mgp = c(3, 0, 0), las = 1)
+dev.off()
+
+
+# .. Generate results ####
+# Pre- and post-intervention periods
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+
+# Outcome variable in treated unit
+Y1plot.UK <- dataprep.out$Y1plot
+
+# Outcome variable in synthetic unit
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Gaps between outcomes in treated and synthetic control
+gaps <- dataprep.out$Y1plot - synth
+colnames(gaps) <- "GBR"
+
+
+# .. Emissions trajectories figure ####
+pdf("Figures/Supplementary Information/Emissions paths in treated and synth_mobile.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, Y1plot.UK, 
+     type = "l", col = "royalblue4", lwd = 2,
+     xlim = range(years), 
+     ylim = range(Y1plot.UK, synth), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions per capita")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
+abline(v = 2001, lty = 2)
+legend(1990, 7.98, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 8, 2000.9, 8, length = 0.1, code = 2)
+text(1997.5, 8.04, "CCP enacted", cex = 0.8)
+dev.off()
+
+
+# .. Convert emissions per capita ####
+synth.t <- left_join(data.frame(synth) %>%
+                       mutate(year = years),
+                     leakage %>%
+                       filter(countrycode == "GBR") %>%
+                       filter(year >= 1990 & year <= 2005) %>%
+                       select(year, SP.POP.TOTL),
+                     by = c("year")) %>%
+  mutate(synth.t = w.weight * SP.POP.TOTL,
+         synth.Mt = synth.t / 10^6)
+
+gaps.t <- left_join(data.frame(gaps) %>%
+                      mutate(year = years),
+                    leakage %>%
+                      filter(countrycode == "GBR") %>%
+                      filter(year >= 1990 & year <= 2005) %>%
+                      select(year, SP.POP.TOTL),
+                    by = c("year")) %>%
+  mutate(gaps.t = GBR * SP.POP.TOTL,
+         gaps.Mt = gaps.t / 10^6)
+
+gaps.t %>%
+  filter(year > 2001) %>%
+  summarize_at(vars(gaps.Mt), sum)
+
+
+# .. Run on immobile emissions ####
+dataprep.out <-
+  dataprep(foo = leakage,
+           predictors = NULL,
+           predictors.op = NULL,
+           time.predictors.prior = choose.time.predictors,
+           special.predictors = list(
+             list("immobile", 1990, "mean"),
+             list("immobile", 1991, "mean"),
+             list("immobile", 1992, "mean"),
+             list("immobile", 1993, "mean"),
+             list("immobile", 1994, "mean"),
+             list("immobile", 1995, "mean"),
+             list("immobile", 1996, "mean"),
+             list("immobile", 1997, "mean"),
+             list("immobile", 1998, "mean"),
+             list("immobile", 1999, "mean"),
+             list("immobile", 2000, "mean"),
+             list("immobile", 2001, "mean")),
+           dependent = "immobile",
+           unit.variable = "countryid",
+           unit.names.variable = "country",
+           time.variable = "year",
+           treatment.identifier = treated.unit,
+           controls.identifier = c(control.units),
+           time.optimize.ssr = choose.time.predictors,
+           time.plot = 1990:2005)
+
+# Running Synth
+synth.out <- synth(data.prep.obj = dataprep.out)
+
+# Export results
+results <- list(cbind(synth.tables$tab.pred, synth.tables$tab.v),
+                synth.tables$tab.w)
+capture.output(results, file = "Results/Supplementary Information/Results immobile emissions.txt")
+donor.weights <- data.frame(synth.tab(dataprep.res = dataprep.out,
+                                      synth.res = synth.out,
+                                      round.digit = 10)$tab.w) %>%
+  select(Donor.country = unit.names, Donor.weight = w.weights) %>%
+  arrange(Donor.weight)
+
+# Plot
+pdf("Figures/Supplementary Information/Donor weights_immobile.pdf", 
+    height = 4.5, width = 6)
+par(mar = c(2, 6.1, 2, 2.1), las = 2)
+a <- barplot(donor.weights$Donor.weight,
+             xaxt = "n",
+             main = "Donor weights",
+             names.arg = donor.weights$Donor.country,
+             cex.main = 0.9,
+             horiz = T,
+             space = 1,
+             cex.names = 0.45,
+             offset = -0.005,
+             xlim = c(0, 0.25))
+axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
+axis(side = 1, at = seq(0, 0.25, by = 0.05), 
+     cex.axis = 0.5, tck = -0.01, 
+     mgp = c(3, 0, 0), las = 1)
+dev.off()
+
+
+# .. Generate results ####
+# Pre- and post-intervention periods
+years <- c(choose.time.predictors, seq(2002, 2005, 1))
+
+# Outcome variable in treated unit
+Y1plot.UK <- dataprep.out$Y1plot
+
+# Outcome variable in synthetic unit
+synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+
+# Gaps between outcomes in treated and synthetic control
+gaps <- dataprep.out$Y1plot - synth
+colnames(gaps) <- "GBR"
+
+
+# .. Emissions trajectories figure ####
+pdf("Figures/Supplementary Information/Emissions paths in treated and synth_immobile.pdf",
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, Y1plot.UK, 
+     type = "l", col = "royalblue4", lwd = 2,
+     xlim = range(years), 
+     ylim = range(Y1plot.UK, synth), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions per capita")),
+     main = "Observed and Synthetic Counterfactual Emissions",
+     frame.plot = FALSE, axes = F)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
+abline(v = 2001, lty = 2)
+legend(1990, 7.98, c("United Kingdom", "Synthetic UK"),
+       lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
+       cex = 0.8, box.col = "seashell", bg = "seashell")
+arrows(1999, 8, 2000.9, 8, length = 0.1, code = 2)
+text(1997.5, 8.04, "CCP enacted", cex = 0.8)
+dev.off()
+
+
+# .. Convert emissions per capita ####
+synth.t <- left_join(data.frame(synth) %>%
+                       mutate(year = years),
+                     leakage %>%
+                       filter(countrycode == "GBR") %>%
+                       filter(year >= 1990 & year <= 2005) %>%
+                       select(year, SP.POP.TOTL),
+                     by = c("year")) %>%
+  mutate(synth.t = w.weight * SP.POP.TOTL,
+         synth.Mt = synth.t / 10^6)
+
+gaps.t <- left_join(data.frame(gaps) %>%
+                      mutate(year = years),
+                    leakage %>%
+                      filter(countrycode == "GBR") %>%
+                      filter(year >= 1990 & year <= 2005) %>%
+                      select(year, SP.POP.TOTL),
+                    by = c("year")) %>%
+  mutate(gaps.t = GBR * SP.POP.TOTL,
+         gaps.Mt = gaps.t / 10^6)
+
+gaps.t %>%
+  filter(year > 2001) %>%
+  summarize_at(vars(gaps.Mt), sum)
 
 
 
