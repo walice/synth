@@ -600,6 +600,32 @@ text(1997.5, 8.5, "CCP enacted", cex = 0.8)
 dev.off()
 
 
+# .. Convert emissions per capita ####
+synth.t <- left_join(data.frame(synth) %>%
+                       mutate(year = years),
+                     data %>%
+                       filter(countrycode == "GBR") %>%
+                       filter(year >= 1990 & year <= 2005) %>%
+                       select(year, SP.POP.TOTL),
+                     by = c("year")) %>%
+  mutate(synth.t = w.weight * SP.POP.TOTL,
+         synth.Mt = synth.t / 10^6)
+
+gaps.t <- left_join(data.frame(gaps) %>%
+                      mutate(year = years),
+                    data %>%
+                      filter(countrycode == "GBR") %>%
+                      filter(year >= 1990 & year <= 2005) %>%
+                      select(year, SP.POP.TOTL),
+                    by = c("year")) %>%
+  mutate(gaps.t = GBR * SP.POP.TOTL,
+         gaps.Mt = gaps.t / 10^6)
+
+gaps.t %>%
+  filter(year > 2001) %>%
+  summarize_at(vars(gaps.Mt), sum)
+
+
 
 ## ## ## ## ## ## ## ## ## ##
 # PLACEBO LOOPS          ####
