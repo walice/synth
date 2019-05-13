@@ -366,41 +366,34 @@ ggplot(data %>% filter(countrycode != "GBR"),
             aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
   theme(legend.position = "none")
 
-# Emissions relative to 1990 in effective sample
-pdf("Figures/CO2 emissions (1990) in effective sample.pdf", 
+# Emissions in effective sample
+pdf("Figures/CO2 emissions in effective sample.pdf", 
     height = 4.5, width = 6)
-ggplot(data %>% filter(countrycode == "NRU" |
-                         countrycode == "ROU" |
-                         countrycode == "BEL" |
+ggplot(data %>% filter(countrycode == "BEL" |
+                         countrycode == "CHL" |
+                         countrycode == "BHS" |
+                         countrycode == "PLW" |
+                         countrycode == "AUT" |
+                         countrycode == "POL" |
+                         countrycode == "NCL" |
                          countrycode == "FRO" |
-                         countrycode == "LIB" |
-                         countrycode == "LUX"), 
+                         countrycode == "SAU" |
+                         countrycode == "PYF" |
+                         countrycode == "LUX" |
+                         countrycode == "URY" |
+                         countrycode == "ESP" |
+                         countrycode == "JPN" |
+                         countrycode == "ITA"), 
        aes(x = year, y = rescaled1990, col = country)) + 
   geom_line() +
   xlab("Year") + 
-  ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
+  ylab(expression(paste("CO"[2], " emissions per capita"))) +
   ggtitle("Emissions trends in the United Kingdom and effective sample") +
   geom_line(data = data %>% filter(countrycode == "GBR"), 
             aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
   theme(legend.position = "bottom", legend.title = element_blank()) +
   xlim(1990, 2010)
 dev.off()
-
-# Zooming in emissions per capita in sample
-ggplot(data[which(!data$countrycode == "GBR" 
-                  & data$EN.ATM.CO2E.PC >= 5 
-                  & data$EN.ATM.CO2E.PC <= 15),], 
-       aes(x = year, y = EN.ATM.CO2E.PC, col = country)) + 
-  geom_line() +
-  xlab("Year") + 
-  ylab(expression(paste("CO"[2], " emissions per capita"))) +
-  ggtitle("Emissions trends in the United Kingdom and donor pool") +
-  geom_line(data = data[which(data$countrycode == "GBR" 
-                              & data$EN.ATM.CO2E.PC >= 5 
-                              & data$EN.ATM.CO2E.PC <= 15),], 
-            aes(x = year, y = EN.ATM.CO2E.PC, col = "United Kingdom"), size = 1.5) +
-  theme(legend.position = "none") +
-  scale_y_continuous(labels = function(x) round(as.numeric(x), 0)) 
 
 rm(codes, countries, indicators, missing, nmiss, scandis, HIC, UMC, OECD, Commonwealth, CDIAC, data_all)
 
