@@ -380,10 +380,7 @@ ggplot(data %>% filter(countrycode == "BEL" |
                          countrycode == "SAU" |
                          countrycode == "PYF" |
                          countrycode == "LUX" |
-                         countrycode == "URY" |
-                         countrycode == "ESP" |
-                         countrycode == "JPN" |
-                         countrycode == "ITA"), 
+                         countrycode == "URY"), 
        aes(x = year, y = rescaled1990, col = country)) + 
   geom_line() +
   xlab("Year") + 
@@ -494,6 +491,14 @@ donor.weights <- data.frame(synth.tab(dataprep.res = dataprep.out,
                                       round.digit = 10)$tab.w) %>%
   select(Donor.country = unit.names, Donor.weight = w.weights) %>%
   arrange(Donor.weight)
+kable(donor.weights %>%
+        arrange(desc(Donor.weight)), 
+      format = "latex",
+      digits = 4)
+bal <- cbind(synth.tables$tab.pred, synth.tables$tab.v)
+row.names(bal) <- seq(1990, 2001)
+kable(bal,
+      format = "latex")
 
 # Plot
 pdf("Figures/Donor weights.pdf", 
@@ -572,6 +577,25 @@ qqstats <- unlist(qqstats(preT.UK, preT.synth))
 # Export balance tests
 results <- kable(cbind(p.val.t, p.val.KS, t(qqstats)), format = "rst")
 capture.output(results, file = "Results/Balance Specification.txt")
+kable(cbind(p.val.t, p.val.KS, t(qqstats)), format = "latex")
+
+# Balance figure
+bal <- synth.tab(synth.res = synth.out,
+                 dataprep.res = dataprep.out,
+                 round.digit = 10)$tab.pred
+bal <- data.frame(bal) %>%
+  mutate(Weighted = Treated - Synthetic,
+         Unweighted = Treated - Sample.Mean) %>%
+  select(Weighted, Unweighted) %>%
+  as.matrix
+pdf("Figures/Balance figure.pdf",
+    height = 4.5, width = 6)
+dotchart(bal,
+         labels = seq(1990, 2001),
+         cex = 0.6,
+         xlab = "Difference in means",
+         main = "Balance in weighted synthetic control and unweighted sample")
+dev.off()
 
 
 # .. Emissions trajectories figure ####
@@ -606,29 +630,45 @@ dev.off()
 
 
 # .. Convert emissions per capita ####
-synth.t <- left_join(data.frame(synth) %>%
+results <- left_join(data.frame(synth) %>%
+                       select(synth.PC = w.weight) %>%
                        mutate(year = years),
                      data %>%
                        filter(countrycode == "GBR") %>%
                        filter(year >= 1990 & year <= 2005) %>%
-                       select(year, SP.POP.TOTL),
+                       select(year, 
+                              population = SP.POP.TOTL, 
+                              UK.t = EN.ATM.CO2E.KT,
+                              UK.PC = EN.ATM.CO2E.PC) %>%
+                       mutate(UK.t = UK.t * 10^3),
                      by = c("year")) %>%
-  mutate(synth.t = w.weight * SP.POP.TOTL,
-         synth.Mt = synth.t / 10^6)
+  mutate(synth.t = synth.PC * population,
+         synth.Mt = synth.t / 10^6,
+         UK.Mt = UK.t / 10^6) %>%
+  left_join(data.frame(gaps) %>%
+              select(gaps.PC = GBR) %>%
+              mutate(year = years),
+            by = c("year")) %>%
+  mutate(gaps.t = gaps.PC * population,
+         gaps.Mt = gaps.t / 10^6) %>%
+  select(year, population,
+         UK.PC, synth.PC, gaps.PC,
+         UK.Mt, synth.Mt, gaps.Mt) %>%
+  mutate(gaps.pct = (UK.Mt - synth.Mt) / synth.Mt)
 
-gaps.t <- left_join(data.frame(gaps) %>%
-                      mutate(year = years),
-                    data %>%
-                      filter(countrycode == "GBR") %>%
-                      filter(year >= 1990 & year <= 2005) %>%
-                      select(year, SP.POP.TOTL),
-                    by = c("year")) %>%
-  mutate(gaps.t = GBR * SP.POP.TOTL,
-         gaps.Mt = gaps.t / 10^6)
-
-gaps.t %>%
+results %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.Mt), sum)
+
+results %>%
+  filter(year > 2001) %>%
+  summarize_at(vars(gaps.Mt), mean)
+
+results %>%
+  filter(year > 2001) %>%
+  summarize_at(vars(gaps.PC), mean)
+
+results %>% filter(year == 2005) %>% select(gaps.pct)
 
 
 
