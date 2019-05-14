@@ -62,13 +62,11 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
+#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
-#library(gghighlight)
 library(ggplot2)
-#library(gridExtra)
 library(kableExtra)
 library(Matching)
 library(plyr)
@@ -200,24 +198,16 @@ weights.spec2 <- donor.weights %>%
   arrange(Donor.country)
 
 # Plot
-pdf("Figures/Supplementary Information/Donor weights_Spec 2.pdf", 
-    height = 4.5, width = 6)
-par(mar = c(2, 6.1, 2, 2.1), las = 2)
-a <- barplot(donor.weights$Donor.weight,
-             xaxt = "n",
-             main = "Donor weights",
-             names.arg = donor.weights$Donor.country,
-             cex.main = 0.9,
-             horiz = T,
-             space = 1,
-             cex.names = 0.45,
-             offset = -0.005,
-             xlim = c(0, 0.25))
-axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
-axis(side = 1, at = seq(0, 0.25, by = 0.05), 
-     cex.axis = 0.5, tck = -0.01, 
-     mgp = c(3, 0, 0), las = 1)
-dev.off()
+g <- ggplot(donor.weights,
+            aes(x = fct_reorder(Donor.country, Donor.weight), y = Donor.weight)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Donor weights",
+       x = "",
+       y = "")
+ggsave(g,
+       file = "Figures/Supplementary Information/Donor weights_Spec 2.pdf",
+       height = 4, width = 6, units = "in")
 
 
 # .. Generate results ####
@@ -622,24 +612,16 @@ weights.spec4 <- donor.weights %>%
   arrange(Donor.country)
 
 # Plot
-pdf("Figures/Supplementary Information/Donor weights_Spec 4.pdf", 
-    height = 4.5, width = 6)
-par(mar = c(2, 6.1, 2, 2.1), las = 2)
-a <- barplot(donor.weights$Donor.weight,
-             xaxt = "n",
-             main = "Donor weights",
-             names.arg = donor.weights$Donor.country,
-             cex.main = 0.9,
-             horiz = T,
-             space = 1,
-             cex.names = 0.45,
-             offset = -0.005,
-             xlim = c(0, 0.25))
-axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
-axis(side = 1, at = seq(0, 0.25, by = 0.05), 
-     cex.axis = 0.5, tck = -0.01, 
-     mgp = c(3, 0, 0), las = 1)
-dev.off()
+g <- ggplot(donor.weights,
+       aes(x = fct_reorder(Donor.country, Donor.weight), y = Donor.weight)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Donor weights",
+       x = "",
+       y = "")
+ggsave(g,
+       file = "Figures/Supplementary Information/Donor weights_Spec 4.pdf",
+       height = 4, width = 6, units = "in")
 
 
 # .. Generate results ####
@@ -699,7 +681,7 @@ par(new = TRUE, mgp = c(2, 1, 0))
 plot(years, Y1plot.UK, 
      type = "l", col = "royalblue4", lwd = 2,
      xlim = range(years), 
-     ylim = c(7, 12), 
+     ylim = c(8, 11), 
      las = 1, cex.axis = 0.8, tck = -0.05,
      xlab = "Year",
      ylab = expression(paste("CO"[2], " emissions per capita")),
@@ -711,11 +693,11 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
 abline(v = 2001, lty = 2)
-legend(1990, 7.98, c("United Kingdom", "Synthetic UK"),
-       lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
+legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
+       lty = c(1, 2), lwd = c(2, 2), col = c("royalblue4", "royalblue1"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8, 2000.9, 8, length = 0.1, code = 2)
-text(1997.5, 8.04, "CCP enacted", cex = 0.8)
+arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
+text(1997.5, 8.5, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -815,8 +797,8 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
-arrows(1999.5, -0.5, 2000.9, -0.5, length = 0.1, code = 2)
-text(1998, -0.48, "CCP enacted", cex = 0.8)
+arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
+text(1998, -0.92, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(placebo.results)){
   lines(years, placebo.results[, i], col = "gray") 
 }
@@ -957,7 +939,7 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
 arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.9, "CCP enacted", cex = 0.8)
+text(1998, -0.92, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(leaveoneout.results)){
   lines(years, leaveoneout.results[, i], col = "thistle") 
 }
@@ -1071,24 +1053,18 @@ donor.weights <- data.frame(synth.tab(dataprep.res = dataprep.out,
   arrange(Donor.weight)
 
 # Plot
-pdf("Figures/Supplementary Information/Donor weights_Spec 5.pdf", 
-    height = 4.5, width = 6)
-par(mar = c(2, 6.1, 2, 2.1), las = 2)
-a <- barplot(donor.weights$Donor.weight,
-             xaxt = "n",
-             main = "Donor weights",
-             names.arg = donor.weights$Donor.country,
-             cex.main = 0.9,
-             horiz = T,
-             space = 1,
-             cex.names = 0.45,
-             offset = -0.005,
-             xlim = c(0, 0.25))
-axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
-axis(side = 1, at = seq(0, 0.25, by = 0.05), 
-     cex.axis = 0.5, tck = -0.01, 
-     mgp = c(3, 0, 0), las = 1)
-dev.off()
+g <- ggplot(donor.weights,
+            aes(x = fct_reorder(Donor.country, Donor.weight), y = Donor.weight)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Donor weights",
+       x = "",
+       y = "") +
+  theme(axis.text.y = element_text(size = 7)) +
+  theme(axis.text.x = element_text(size = 7))
+ggsave(g,
+       file = "Figures/Supplementary Information/Donor weights_Spec 5.pdf",
+       height = 4, width = 6, units = "in")
 
 
 # .. Generate results ####
@@ -1160,11 +1136,11 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
 abline(v = 2001, lty = 2)
-legend(1990, 7.98, c("United Kingdom", "Synthetic UK"),
+legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
        lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
        cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8, 2000.9, 8, length = 0.1, code = 2)
-text(1997.5, 8.04, "CCP enacted", cex = 0.8)
+arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
+text(1997.5, 8.5, "CCP enacted", cex = 0.8)
 dev.off()
 
 
@@ -1273,8 +1249,8 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
-arrows(1999.5, -1, 2000.9, -1, length = 0.1, code = 2)
-text(1998, -0.98, "CCP enacted", cex = 0.8)
+arrows(1999.5, -1.42, 2000.9, -1.42, length = 0.1, code = 2)
+text(1998, -1.42, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(placebo.results)){
   lines(years, placebo.results[, i], col = "gray") 
 }
@@ -1310,6 +1286,18 @@ sort(ratio.MSE)
 # 1/24 = 0.04166667
 
 # Plot
+# ggplot(as.data.frame(ratio.MSE) %>%
+#          rownames_to_column("country"),
+#        aes(x = fct_reorder(country, ratio.MSE), y = ratio.MSE,
+#            fill = factor(ifelse(country == "GBR", 0, 1)))) +
+#   geom_bar(stat = "identity") +
+#   scale_fill_manual(values = c("purple", "grey40")) +
+#   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust = 0.5)) +
+#   guides(fill = FALSE) +
+#   labs(title = "Ratio of post-treatment to pre-treatment MSPE",
+#        x = "",
+#        y = "")
+
 pdf("Figures/Supplementary Information/MSPE Ratio_Spec 5.pdf", 
     height = 4.5, width = 6)
 cols <- ifelse(names(sort(ratio.MSE)) == "GBR", "darkorchid", "grey")
@@ -1321,7 +1309,7 @@ a <- barplot(sort(ratio.MSE),
              cex.main = 0.9)
 labs <- names(sort(ratio.MSE))
 lab.cols <- ifelse(names(sort(ratio.MSE)) == "GBR", "darkorchid", "black")
-text(a[,1], y = -2, 
+text(a[,1], y = -10, 
      labels = labs, xpd = TRUE, srt = 60, adj = 1, cex = 0.6,
      col = lab.cols)
 axis(side = 2, cex.axis = 0.8, lwd.ticks = 1, tck = -0.01, 
@@ -1427,8 +1415,8 @@ axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
      tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
 abline(v = 2001, lty = 2)
 abline(h = 0, lty = 1, col = "darkgrey")
-arrows(1999.5, -1.048, 2000.9, -1.048, length = 0.1, code = 2)
-text(1998, -1.045, "CCP enacted", cex = 0.8)
+arrows(1999.5, -1.42, 2000.9, -1.42, length = 0.1, code = 2)
+text(1998, -1.42, "CCP enacted", cex = 0.8)
 for (i in 1:ncol(leaveoneout.results)){
   lines(years, leaveoneout.results[, i], col = "thistle") 
 }
@@ -1517,24 +1505,16 @@ weights.spec6 <- donor.weights %>%
   arrange(Donor.country)
 
 # Plot
-pdf("Figures/Supplementary Information/Donor weights_Spec 6.pdf", 
-    height = 4.5, width = 6)
-par(mar = c(2, 6.1, 2, 2.1), las = 2)
-a <- barplot(donor.weights$Donor.weight,
-             xaxt = "n",
-             main = "Donor weights",
-             names.arg = donor.weights$Donor.country,
-             cex.main = 0.9,
-             horiz = T,
-             space = 1,
-             cex.names = 0.45,
-             offset = -0.005,
-             xlim = c(0, 0.25))
-axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
-axis(side = 1, at = seq(0, 0.25, by = 0.05), 
-     cex.axis = 0.5, tck = -0.01, 
-     mgp = c(3, 0, 0), las = 1)
-dev.off()
+g <- ggplot(donor.weights,
+            aes(x = fct_reorder(Donor.country, Donor.weight), y = Donor.weight)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Donor weights",
+       x = "",
+       y = "")
+ggsave(g,
+       file = "Figures/Supplementary Information/Donor weights_Spec 6.pdf",
+       height = 4, width = 6, units = "in")
 
 
 # .. Generate results ####

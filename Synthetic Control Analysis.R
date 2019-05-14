@@ -73,14 +73,14 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
+#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
-#library(gghighlight)
-#library(gridExtra)
+library(ggrepel)
 library(kableExtra)
 library(Matching)
+library(paletteer)
 library(plyr)
 library(stargazer)
 library(Synth)
@@ -231,7 +231,7 @@ data <- left_join(data, data %>%
                   by = "countryid") %>%
   mutate(rescaled2000 = EN.ATM.CO2E.KT/baseline2000)
 attr(data$baseline2000, "label") <- "CO2 emissions (kt) in 2000"
-attr(data$rescaled1990, "label") <- NULL
+attr(data$rescaled2000, "label") <- NULL
 
 
 # .. Drop missing data and specific donors ####
@@ -348,51 +348,57 @@ save(data, file = "Data/data_OECD_HIC.Rdata")
 ggplot(data %>% filter(countrycode != "GBR"), 
        aes(x = year, y = EN.ATM.CO2E.PC, col = country)) + 
   geom_line() +
-  xlab("Year") + 
-  ylab(expression(paste("CO"[2], " emissions per capita"))) +
-  ggtitle("Emissions trends in the United Kingdom and donor pool") +
   geom_line(data = data %>% filter(countrycode == "GBR"), 
             aes(x = year, y = EN.ATM.CO2E.PC, col = "United Kingdom"), size = 1.5) +
+  labs(title = "Emissions trends in the United Kingdom and donor pool",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
   theme(legend.position = "none")
 
 # Emissions relative to 1990 in sample
 ggplot(data %>% filter(countrycode != "GBR"), 
        aes(x = year, y = rescaled1990, col = country)) + 
   geom_line() +
-  xlab("Year") + 
-  ylab(expression(paste("CO"[2], " emissions against 1990 baseline"))) +
-  ggtitle("Emissions trends in the United Kingdom and donor pool") +
   geom_line(data = data %>% filter(countrycode == "GBR"), 
             aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
+  labs(title = "Emissions trends in the United Kingdom and donor pool",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions against 1990 baseline"))) +
   theme(legend.position = "none")
 
 # Emissions in effective sample
-pdf("Figures/CO2 emissions in effective sample.pdf", 
-    height = 4.5, width = 6)
-ggplot(data %>% filter(countrycode == "BEL" |
-                         countrycode == "CHL" |
-                         countrycode == "BHS" |
-                         countrycode == "PLW" |
-                         countrycode == "AUT" |
-                         countrycode == "POL" |
-                         countrycode == "NCL" |
-                         countrycode == "FRO" |
-                         countrycode == "SAU" |
-                         countrycode == "PYF" |
-                         countrycode == "LUX" |
-                         countrycode == "URY"), 
-       aes(x = year, y = rescaled1990, col = country)) + 
+effective.sample <- c("BEL", "CHE", "BHS", "PLW", "AUT", "POL", "NCL", "FRO", "SAU", "PYF", "LUX", "URY")
+g <- ggplot(data %>% 
+         filter(countrycode %in% effective.sample) %>%
+         filter(year >= 1990 & year <= 2010), 
+       aes(x = year, y = EN.ATM.CO2E.PC, col = fct_reorder2(country, year, EN.ATM.CO2E.PC))) + 
   geom_line() +
-  xlab("Year") + 
-  ylab(expression(paste("CO"[2], " emissions per capita"))) +
-  ggtitle("Emissions trends in the United Kingdom and effective sample") +
-  geom_line(data = data %>% filter(countrycode == "GBR"), 
-            aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
-  theme(legend.position = "bottom", legend.title = element_blank()) +
-  xlim(1990, 2010)
-dev.off()
+  geom_line(data = data %>% 
+              filter(countrycode == "GBR") %>%
+              filter(year >= 1990 & year <= 2010), 
+            aes(x = year, y = EN.ATM.CO2E.PC), 
+            col = "black", linetype = 2) +
+  scale_color_paletteer_d(package = "rcartocolor",
+                          palette = "Bold") +
+  labs(title = "Emissions trends in the United Kingdom and effective sample",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_label_repel(data = data %>% 
+               filter(countrycode %in% effective.sample) %>%
+               filter(year == 2010),
+             aes(label = country)) +
+  geom_label_repel(data = data %>% 
+               filter(countrycode == "GBR") %>%
+               filter(year == 1990),
+             label = "UK", col = "black") +
+  theme(legend.position = "none")
+ggsave(g,
+       file = "Figures/CO2 emissions in effective sample.pdf",
+       height = 5, width = 6, units = "in")
 
-rm(codes, countries, indicators, missing, nmiss, scandis, HIC, UMC, OECD, Commonwealth, CDIAC, data_all)
+rm(codes, countries, indicators, missing, nmiss, 
+   scandis, HIC, UMC, OECD, Commonwealth, CDIAC, 
+   data_all, effective.sample, g)
 
 
 
@@ -496,7 +502,7 @@ kable(donor.weights %>%
       format = "latex",
       digits = 4)
 bal <- cbind(synth.tables$tab.pred, synth.tables$tab.v)
-row.names(bal) <- seq(1990, 2001)
+row.names(bal) <- choose.time.predictors
 kable(bal,
       format = "latex")
 
@@ -591,11 +597,27 @@ bal <- data.frame(bal) %>%
 pdf("Figures/Balance figure.pdf",
     height = 4.5, width = 6)
 dotchart(bal,
-         labels = seq(1990, 2001),
+         labels = choose.time.predictors,
          cex = 0.6,
          xlab = "Difference in means",
          main = "Balance in weighted synthetic control and unweighted sample")
 dev.off()
+
+# Difference in means for weighted and unweighted
+t.test(synth.tab(synth.res = synth.out,
+                 dataprep.res = dataprep.out,
+                 round.digit = 10)$tab.pred[, "Treated"],
+       synth.tab(synth.res = synth.out,
+                 dataprep.res = dataprep.out,
+                 round.digit = 10)$tab.pred[, "Synthetic"])$p.value
+# 0.9954754
+t.test(synth.tab(synth.res = synth.out,
+                 dataprep.res = dataprep.out,
+                 round.digit = 10)$tab.pred[, "Treated"],
+       synth.tab(synth.res = synth.out,
+                 dataprep.res = dataprep.out,
+                 round.digit = 10)$tab.pred[, "Sample Mean"])$p.value
+# 1.059105e-06
 
 
 # .. Emissions trajectories figure ####
@@ -669,6 +691,8 @@ results %>%
   summarize_at(vars(gaps.PC), mean)
 
 results %>% filter(year == 2005) %>% select(gaps.pct)
+
+results %>% filter(year == 2002) %>% select(gaps.Mt)
 
 
 
@@ -789,13 +813,12 @@ UK.MSE <- as.numeric(MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, MSE > 5*UK.MSE])
-# Exclude ABW, ARE, ARG, AUS, AUT, BEL, BHR, BHS, BMU, BRB, BRN, CAN
-# CHE, CYM, CYP, DEU, ESP, FIN, FRA, FRO, GRL, HKG, HUN, IRL
-# ISL, ISR, ITA, JPN, KNA, KOR, LUX, MAC, MLT, NCL, NZL, OMN
-# PAN, PLW, POL, PRT, PYF, QAT, SAU, SGP, SYC, TTO, TUR, URY
-# USA, VGB
+# Exclude ABW, ARE, ARG, AUS, AUT, BEL, BHR, BHS, BMU, BRB, BRN, CAN, CHE, CYM, CYP, DEU, ESP,
+# FIN, FRA, FRO, GRL, HKG, HUN, IRL, ISL, ISR, ITA, JPN, KNA, KOR, LUX, MAC, MLT, NCL,
+# NZL, OMN, PAN, PLW, POL, PRT, PYF, QAT, SAU, SGP, SYC, TTO, TUR, URY, USA, VGB
 placebo.results_5 <- placebo.results[, MSE < 5*UK.MSE]
 placebo.results_10 <- placebo.results[, MSE < 10*UK.MSE]
+placebo.results_20 <- placebo.results[, MSE < 20*UK.MSE]
 
 # Plot
 pdf("Figures/Gaps in emissions_placebo_all.pdf", 
@@ -827,7 +850,7 @@ for (i in 1:ncol(placebo.results)){
 lines(years, placebo.results[, which(colnames(placebo.results) == "GBR")],
       type = "l", col = "darkorchid", lwd = 2)
 arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.9, "CCP enacted", cex = 0.8)
+text(1998, -0.92, "CCP enacted", cex = 0.8)
 dev.off()
 
 # Plot excluding placebos with MSPE > 5
@@ -860,7 +883,7 @@ for (i in 1:ncol(placebo.results_5)){
 lines(years, placebo.results_5[, which(colnames(placebo.results_5) == "GBR")],
       type = "l", col = "darkorchid", lwd = 2)
 arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.9, "CCP enacted", cex = 0.8)
+text(1998, -0.92, "CCP enacted", cex = 0.8)
 dev.off()
 
 # Plot excluding placebos with MSPE > 10
@@ -893,12 +916,45 @@ for (i in 1:ncol(placebo.results_10)){
 lines(years, placebo.results_10[, which(colnames(placebo.results_10) == "GBR")],
       type = "l", col = "darkorchid", lwd = 2)
 arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.9, "CCP enacted", cex = 0.8)
+text(1998, -0.92, "CCP enacted", cex = 0.8)
+dev.off()
+
+# Plot excluding placebos with MSPE > 20
+pdf("Figures/Gaps in emissions_placebo_MSPE20.pdf", 
+    height = 4.5, width = 6)
+plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
+u <- par("usr") # The coordinates of the plot area
+rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
+grid (NULL, NULL, lty = 1, col = "seashell")
+par(new = TRUE, mgp = c(2, 1, 0))
+plot(years, placebo.results_20[, which(colnames(placebo.results_20) == "GBR")],
+     type = "l", col = "darkorchid", lwd = 2,
+     xlim = range(years), 
+     ylim = c(-1, 1), 
+     las = 1, cex.axis = 0.8, tck = -0.05,
+     xlab = "Year",
+     ylab = expression(paste("CO"[2], " emissions per capita")),
+     main = "Gap between Treated and Synthetic Control",
+     frame.plot = FALSE, axes = F)
+mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
+axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(0, 0.2, 0))
+axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
+     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
+abline(v = 2001, lty = 2)
+abline(h = 0, lty = 1, col = "darkgrey")
+for (i in 1:ncol(placebo.results_20)){
+  lines(years, placebo.results_20[, i], col = "gray") 
+}
+lines(years, placebo.results_20[, which(colnames(placebo.results_20) == "GBR")],
+      type = "l", col = "darkorchid", lwd = 2)
+arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
+text(1998, -0.92, "CCP enacted", cex = 0.8)
 dev.off()
 
 # How many control states remain?
 colnames(placebo.results_5)
-# 3 control states
+# 4 control states
 
 
 # .. MSPE analysis ####
@@ -1041,7 +1097,7 @@ for (i in 1:ncol(leaveoneout.results)){
 lines(years, leaveoneout.results[, which(colnames(leaveoneout.results) == "No_Dropped")],
       type = "l", col = "darkorchid", lwd = 2)
 arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.9, "CCP enacted", cex = 0.8)
+text(1998, -0.92, "CCP enacted", cex = 0.8)
 dev.off()
 
 
