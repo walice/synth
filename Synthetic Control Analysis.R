@@ -25,18 +25,22 @@
 # .. Balance tests
 # .. Emissions trajectories figure
 # .. Convert emissions per capita
-# Placebo Loops
+# Placebo Countries
 # .. Running Synth
 # .. Outcomes
 # .. Store emissions path in treated unit and its synthetic counterpart
 # .. Calculating annual gaps between the UK and its synthetic counterpart
 # .. Emissions trajectories figure
 # .. Gaps figure
-# .. MSPE analysis
+# .. Ratio of post-treatment MSPE to pre-treatment MSPE
 # Leave-One-Out Check    
 # .. Running Synth 
 # .. Calculating annual gaps between the UK and its synthetic counterpart
 # .. Leave-one-out figure
+# Placebo Years
+# .. Running Synth
+# .. Store emissions paths
+# .. Figure
 # Carbon Leakage
 # .. Calculate emissions from transport sectors
 # .. Run on mobile emissions
@@ -47,22 +51,10 @@
 # .. Generate results
 # .. Emissions trajectories figure
 # .. Convert emissions per capita
-# Re-Assign Treatment Year
-# .. Treatment in 2001
-# .. Treatment in 2000
-# .. Treatment in 1999
-# .. Treatment in 1998
-# .. Treatment in 1997
-# .. Treatment in 1996
-# .. Treatment in 1995
-# .. Treatment in 1994
-# .. Treatment in 1993
-# .. Treatment in 1992
-# .. Treatment in 1991
 # Trajectory Balancing
 # .. Reshape data
 # .. Mean balancing with intercept shift
-# .. Placebo loops
+# .. Placebo countries
 # .. Placebo figure
 # .. MSPE analysis
 # .. Leave-one-out check
@@ -74,8 +66,8 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
 library(ggrepel)
@@ -93,6 +85,9 @@ library(tjbal)
 library(WDI)
 library(xlsx)
 set.seed(1509)
+
+theme_set(theme_classic())
+theme_update(axis.line = element_line(color = "grey"))
 
 
 
@@ -189,7 +184,7 @@ indicators <- c("EN.ATM.CO2E.KT", # CO2 emissions (kt)
                 "NE.IMP.GNFS.ZS", # Imports of goods and services (% of GDP)
                 "SP.POP.TOTL", # Population, total
                 "EN.CO2.TRAN.ZS" # CO2 emissions from transport (% of total fuel combustion)
-                )
+)
 
 # data <- WDI(country = countries, indicator = indicators)
 # save(data, file = "Data/data.Rdata")
@@ -200,9 +195,9 @@ data <- data %>%
   mutate(EN.ATM.CO2E.PC = ifelse(country == "Germany" & year <= 1990, EN.ATM.CO2E.KT * 1000 / SP.POP.TOTL, EN.ATM.CO2E.PC))
 
 data <- left_join(data, codes %>% 
-                     select(ISO3166.2, ISO3166.3, Country) %>% 
-                     distinct(ISO3166.2, .keep_all = T),
-                   by = c("iso2c" = "ISO3166.2")) %>%
+                    select(ISO3166.2, ISO3166.3, Country) %>% 
+                    distinct(ISO3166.2, .keep_all = T),
+                  by = c("iso2c" = "ISO3166.2")) %>%
   select(-c(iso2c, country)) %>%
   rename(countrycode = ISO3166.3,
          country = Country) %>%
@@ -220,7 +215,7 @@ data <- left_join(data, data %>%
                     filter(year == 1990) %>%
                     select(countryid, baseline1990 = EN.ATM.CO2E.KT) %>%
                     ungroup(),
-             by = "countryid") %>%
+                  by = "countryid") %>%
   mutate(rescaled1990 = EN.ATM.CO2E.KT/baseline1990)
 attr(data$baseline1990, "label") <- "CO2 emissions (kt) in 1990"
 attr(data$rescaled1990, "label") <- NULL
@@ -280,7 +275,7 @@ missing <- subset(nmiss,
                     & fuelexportspc.missing > 10
                     & exportsgdp.missing > 10
                     & importsgdp.missing > 10)
-                )
+)
 
 missing <- missing %>% 
   select(countrycode) %>%
@@ -348,10 +343,12 @@ save(data, file = "Data/data_OECD_HIC.Rdata")
 
 # .. Figures of summary statistics ####
 # Emissions per capita in sample
-ggplot(data %>% filter(countrycode != "GBR"), 
+ggplot(data %>% 
+         filter(countrycode != "GBR"), 
        aes(x = year, y = EN.ATM.CO2E.PC, col = country)) + 
   geom_line() +
-  geom_line(data = data %>% filter(countrycode == "GBR"), 
+  geom_line(data = data 
+            %>% filter(countrycode == "GBR"), 
             aes(x = year, y = EN.ATM.CO2E.PC, col = "United Kingdom"), size = 1.5) +
   labs(title = "Emissions trends in the United Kingdom and donor pool",
        x = "Year",
@@ -359,10 +356,12 @@ ggplot(data %>% filter(countrycode != "GBR"),
   theme(legend.position = "none")
 
 # Emissions relative to 1990 in sample
-ggplot(data %>% filter(countrycode != "GBR"), 
+ggplot(data %>% 
+         filter(countrycode != "GBR"), 
        aes(x = year, y = rescaled1990, col = country)) + 
   geom_line() +
-  geom_line(data = data %>% filter(countrycode == "GBR"), 
+  geom_line(data = data %>% 
+              filter(countrycode == "GBR"), 
             aes(x = year, y = rescaled1990, col = "United Kingdom"), size = 1.5) +
   labs(title = "Emissions trends in the United Kingdom and donor pool",
        x = "Year",
@@ -372,9 +371,9 @@ ggplot(data %>% filter(countrycode != "GBR"),
 # Emissions in effective sample
 effective.sample <- c("BEL", "CHE", "BHS", "PLW", "AUT", "POL", "NCL", "FRO", "SAU", "PYF", "LUX", "URY")
 g <- ggplot(data %>% 
-         filter(countrycode %in% effective.sample) %>%
-         filter(year >= 1990 & year <= 2010), 
-       aes(x = year, y = EN.ATM.CO2E.PC, col = fct_reorder2(country, year, EN.ATM.CO2E.PC))) + 
+              filter(countrycode %in% effective.sample) %>%
+              filter(year >= 1990 & year <= 2010), 
+            aes(x = year, y = EN.ATM.CO2E.PC, col = fct_reorder2(country, year, EN.ATM.CO2E.PC))) + 
   geom_line() +
   geom_line(data = data %>% 
               filter(countrycode == "GBR") %>%
@@ -387,13 +386,13 @@ g <- ggplot(data %>%
        x = "Year",
        y = expression(paste("CO"[2], " emissions per capita"))) +
   geom_label_repel(data = data %>% 
-               filter(countrycode %in% effective.sample) %>%
-               filter(year == 2010),
-             aes(label = country)) +
+                     filter(countrycode %in% effective.sample) %>%
+                     filter(year == 2010),
+                   aes(label = country)) +
   geom_label_repel(data = data %>% 
-               filter(countrycode == "GBR") %>%
-               filter(year == 1990),
-             label = "UK", col = "black") +
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 1990),
+                   label = "UK", col = "black") +
   theme(legend.position = "none")
 ggsave(g,
        file = "Figures/CO2 emissions in effective sample.pdf",
@@ -511,18 +510,19 @@ kable(bal,
 
 # Plot
 g <- ggplot(donor.weights,
-       aes(x = reorder(Donor.country, Donor.weight), y = Donor.weight)) +
+            aes(x = reorder(Donor.country, Donor.weight), 
+                y = Donor.weight)) +
   geom_col(width = 0.8) +
   coord_flip() +
-  theme_minimal() +
-  geom_text(aes(label = ifelse(Donor.weight < 1e-04, round(Donor.weight, 5), round(Donor.weight, 4))),
-            size = 2, nudge_x = 0, nudge_y = 0.01) +
+  geom_text(aes(label = ifelse(Donor.weight < 1e-04, 
+                               round(Donor.weight, 5), 
+                               round(Donor.weight, 4))),
+            size = 2, nudge_x = 0, nudge_y = 0.011) +
   labs(title = "Donor weights",
        x = "", y = "") +
   theme(axis.text.y = element_text(size = 6))
 ggsave(g, file = "Figures/Donor weights.pdf",
        width = 6, height = 5, units = "in")
-
 
 
 
@@ -538,6 +538,7 @@ years <- c(choose.time.predictors, seq(2002, 2005, 1))
 
 # Outcome variable in treated unit
 Y1plot.UK <- dataprep.out$Y1plot
+colnames(Y1plot.UK) <- "GBR"
 
 # Outcome variable in donor pool
 Y0plot.UK <- dataprep.out$Y0plot
@@ -547,10 +548,10 @@ w.UK <- synth.out$solution.w
 
 # Outcome variable in synthetic unit
 synth <- Y0plot.UK %*% w.UK
+colnames(synth) <- "GBR"
 
 # Gaps between outcomes in treated and synthetic control
 gaps <- Y1plot.UK - synth
-colnames(gaps) <- "GBR"
 
 
 # .. Balance tests ####
@@ -588,19 +589,23 @@ bal <- synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred
 bal <- data.frame(bal) %>%
-  mutate(Weighted = Treated - Synthetic,
+  mutate(Year = seq(1990, 2001),
+         Weighted = Treated - Synthetic,
          Unweighted = Treated - Sample.Mean) %>%
-  select(Weighted, Unweighted) %>%
-  as.matrix
+  select(Year, Weighted, Unweighted) %>%
+  melt(id.vars = "Year")
 
-pdf("Figures/Balance figure.pdf",
-    height = 4.5, width = 6)
-dotchart(bal,
-         labels = choose.time.predictors,
-         cex = 0.6,
-         xlab = "Difference in means",
-         main = "Balance in weighted synthetic control and unweighted sample")
-dev.off()
+g <- ggplot(bal, aes(x = value, y = Year)) +
+  geom_point() +
+  facet_grid(rows = vars(variable)) +
+  theme_minimal() +
+  theme(strip.background = element_rect(fill = "grey", color = "grey")) +
+  labs(title = "Balance in weighted synthetic control and in unweighted sample",
+       x = "Difference in means with pre-treatment values in the UK") +
+  scale_y_continuous(breaks = seq(1990, 2001))
+ggsave(g,
+       file = "Figures/Balance in weighted and unweighted samples.pdf",
+       height = 5, width = 6, units = "in")
 
 # Difference in means for weighted and unweighted
 t.test(synth.tab(synth.res = synth.out,
@@ -620,39 +625,47 @@ t.test(synth.tab(synth.res = synth.out,
 
 
 # .. Emissions trajectories figure ####
-pdf("Figures/Emissions paths in treated and synth.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, Y1plot.UK, 
-     type = "l", col = "royalblue4", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
-abline(v = 2001, lty = 2)
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("royalblue4", "royalblue1"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
+plot <- data.frame(years = years,
+                   treated = Y1plot.UK,
+                   synth = synth)
+colnames(plot) <- c("years", "treated", "synth")
+plot <- plot %>%
+  melt(id.vars = "years", value.name = "emissions")
+
+g <- ggplot(plot,
+            aes(x = years, y = emissions, col = variable, linetype = variable)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = c("royalblue4", "royalblue1"),
+                     labels = c("United Kingdom", "Synthetic UK")) +
+  scale_linetype_manual(values = c("solid", "dashed"),
+                        labels = c("United Kingdom", "Synthetic UK")) +
+  ylim(8, 11) +
+  labs(title = "Observed and Synthetic Counterfactual Emissions",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = 8.5, yend = 8.5,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches")),
+               show.legend = F) +
+  geom_text(x = 1997.5,
+            y = 8.5,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold") +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.132, 0.15))
+ggsave(g,
+       file = "Figures/Emissions paths in treated and synth.pdf",
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Convert emissions per capita ####
 results <- left_join(data.frame(synth) %>%
-                       select(synth.PC = w.weight) %>%
+                       select(synth.PC = GBR) %>%
                        mutate(year = years),
                      data %>%
                        filter(countrycode == "GBR") %>%
@@ -696,7 +709,7 @@ results %>% filter(year == 2002) %>% select(gaps.Mt)
 
 
 ## ## ## ## ## ## ## ## ## ##
-# PLACEBO LOOPS          ####
+# PLACEBO COUNTRIES      ####
 ## ## ## ## ## ## ## ## ## ##
 
 placebos <- control.units
@@ -714,261 +727,297 @@ colnames(store.obs) <- whodat(placebos)
 store.synth <- matrix(NA, length(years), length(placebos))
 colnames(store.synth) <- whodat(placebos)
 
-for (i in 1:length(placebos)){
-  dataprep.out <-
-    dataprep(foo = data,
-             predictors = NULL,
-             predictors.op = NULL,
-             time.predictors.prior = choose.time.predictors,
-             special.predictors = list(
-               list("EN.ATM.CO2E.PC", 1990, "mean"),
-               list("EN.ATM.CO2E.PC", 1991, "mean"),
-               list("EN.ATM.CO2E.PC", 1992, "mean"),
-               list("EN.ATM.CO2E.PC", 1993, "mean"),
-               list("EN.ATM.CO2E.PC", 1994, "mean"),
-               list("EN.ATM.CO2E.PC", 1995, "mean"),
-               list("EN.ATM.CO2E.PC", 1996, "mean"),
-               list("EN.ATM.CO2E.PC", 1997, "mean"),
-               list("EN.ATM.CO2E.PC", 1998, "mean"),
-               list("EN.ATM.CO2E.PC", 1999, "mean"),
-               list("EN.ATM.CO2E.PC", 2000, "mean"),
-               list("EN.ATM.CO2E.PC", 2001, "mean")),
-             dependent = "EN.ATM.CO2E.PC",
-             unit.variable = "countryid",
-             unit.names.variable = "country",
-             time.variable = "year",
-             treatment.identifier = placebos[i],
-             controls.identifier = placebos[-i],
-             time.optimize.ssr = choose.time.predictors,
-             time.plot = 1990:2005)
+# for (i in 1:length(placebos)){
+#   dataprep.out <-
+#     dataprep(foo = data,
+#              predictors = NULL,
+#              predictors.op = NULL,
+#              time.predictors.prior = choose.time.predictors,
+#              special.predictors = list(
+#                list("EN.ATM.CO2E.PC", 1990, "mean"),
+#                list("EN.ATM.CO2E.PC", 1991, "mean"),
+#                list("EN.ATM.CO2E.PC", 1992, "mean"),
+#                list("EN.ATM.CO2E.PC", 1993, "mean"),
+#                list("EN.ATM.CO2E.PC", 1994, "mean"),
+#                list("EN.ATM.CO2E.PC", 1995, "mean"),
+#                list("EN.ATM.CO2E.PC", 1996, "mean"),
+#                list("EN.ATM.CO2E.PC", 1997, "mean"),
+#                list("EN.ATM.CO2E.PC", 1998, "mean"),
+#                list("EN.ATM.CO2E.PC", 1999, "mean"),
+#                list("EN.ATM.CO2E.PC", 2000, "mean"),
+#                list("EN.ATM.CO2E.PC", 2001, "mean")),
+#              dependent = "EN.ATM.CO2E.PC",
+#              unit.variable = "countryid",
+#              unit.names.variable = "country",
+#              time.variable = "year",
+#              treatment.identifier = placebos[i],
+#              controls.identifier = placebos[-i],
+#              time.optimize.ssr = choose.time.predictors,
+#              time.plot = 1990:2005)
+# 
+# 
+#   # .. Running Synth ####
+#   synth.out <- synth(data.prep.obj = dataprep.out)
+# 
+# 
+#   # .. Store emissions path in treated unit and its synthetic counterpart ####
+#   store.obs[,i] <- dataprep.out$Y1plot
+#   store.synth[,i] <- dataprep.out$Y0plot %*% synth.out$solution.w
+# 
+# 
+#   # .. Calculating annual gaps between the treated and its synthetic counterpart ####
+#   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+# }
+#
+# save(store.obs, file = "Results/Placebo countries/store.obs.Rdata")
+# save(store.synth, file = "Results/Placebo countries/store.synth.Rdata")
+# save(store.gaps, file = "Results/Placebo countries/store.gaps.Rdata")
 
-
-  # .. Running Synth ####
-  synth.out <- synth(data.prep.obj = dataprep.out)
-
-
-  # .. Store emissions path in treated unit and its synthetic counterpart ####
-  store.obs[,i] <- dataprep.out$Y1plot
-  store.synth[,i] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-
-  # .. Calculating annual gaps between the treated and its synthetic counterpart ####
-  store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
-}
-
-save(store.obs, file = "Results/Placebo loops/store.obs.Rdata")
-save(store.synth, file = "Results/Placebo loops/store.synth.Rdata")
-save(store.gaps, file = "Results/Placebo loops/store.gaps.Rdata")
+load("Results/Placebo countries/store.obs.Rdata")
+load("Results/Placebo countries/store.synth.Rdata")
+load("Results/Placebo countries/store.gaps.Rdata")
 
 
 # .. Emissions trajectories figure for placebos ####
-store.obs <- cbind(store.obs, Y1plot.UK)
-store.synth <- cbind(store.synth, synth)
-store.gaps <- cbind(store.gaps, gaps)
+store.obs <- data.frame(Year = years, 
+                        store.obs, 
+                        Y1plot.UK) %>%
+  melt(id.vars = c("Year"), value.name = "Observed", variable = "Country")
+store.synth <- data.frame(Year = years, 
+                          store.synth, 
+                          synth) %>%
+  melt(id.vars = c("Year"), value.name = "Synthetic", variable = "Country")
+
+plot.emissions <- full_join(store.obs,
+                            store.synth,
+                            by = c("Year", "Country"))
 
 countries <- c(placebos, treated.unit)
-c.labels <- whatname(countries)
+countries <- whodat(countries)
 
 for (c in 1:length(countries)){
-  pdf(paste0("Figures/Emissions paths in placebo and synth_", c.labels[c], ".pdf"), 
-    height = 4.5, width = 6)
-  plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-  u <- par("usr") # The coordinates of the plot area
-  rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-  grid (NULL, NULL, lty = 1, col = "seashell")
-  par(new = TRUE, mgp = c(2, 1, 0))
-  plot(years, store.obs[,c], 
-       type = "l", col = "#014421", lwd = 2,
-       xlim = range(years), 
-       ylim = range(store.obs[,c], store.synth[,c]), 
-       las = 1, cex.axis = 0.8, tck = -0.05,
-       xlab = "Year",
-       ylab = expression(paste("CO"[2], " emissions per capita")),
-       main = "Observed and Synthetic Counterfactual Emissions",
-       frame.plot = FALSE, axes = F)
-  axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-       tck = -0.01, mgp = c(0, 0.2, 0))
-  axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-       tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-  lines(years, store.synth[,c], col = "#11904E", lty = 2, lwd = 2)
-  abline(v = 2001, lty = 2)
-  mtext(c.labels[c],
-        cex = 0.8, side = 3, padj = -0.8, adj = 0)
-  dev.off()
+  g <- ggplot(plot.emissions %>%
+                filter(Country == countries[c])) +
+    geom_line(aes(x = Year, y = Observed),
+              col = "#014421", lwd = 1, lty = 1) +
+    geom_line(aes(x = Year, y = Synthetic),
+              col = "#11904E", lwd = 1, lty = 2) +
+    ylim(range(plot.emissions[plot.emissions$Country == countries[c], "Observed"], 
+               plot.emissions[plot.emissions$Country == countries[c], "Synthetic"])) +
+    labs(title = "Observed and Synthetic Counterfactual Emissions",
+         subtitle = whodis(countries[c]),
+         x = "Year",
+         y = expression(paste("CO"[2], " emissions per capita"))) +
+    geom_vline(xintercept = 2001,
+               lty = 2) +
+    geom_segment(x = 1999, xend = 2001,
+                 y = 8.5, yend = 8.5,
+                 col = "black",
+                 arrow = arrow(ends = "last", type = "closed",
+                               length = unit(0.1, "inches")),
+                 show.legend = F)
+  ggsave(g,
+         file = paste0("Figures/Emissions paths in treated and synth_", whodis(countries[c]), ".pdf"),
+         height = 4.5, width = 6, units = "in")
 }
 
 
 # .. Gaps figure ####
-placebo.results <- store.gaps
+placebo.results <- data.frame(store.gaps,
+                              gaps)
 
 # Define pre-treatment period in gaps
 gap.start <- 1
 gap.end <- nrow(placebo.results)
 gap.end.pre <- which(rownames(placebo.results) == "2001")
-
-# Mean Square Prediction Error Pre-Treatment
-MSE <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
-UK.MSE <- as.numeric(MSE["GBR"])
-
-# Exclude countries with 5 times higher MSPE than UK
-colnames(placebo.results[, MSE > 5*UK.MSE])
-# Exclude ABW, ARE, ARG, AUS, AUT, BEL, BHR, BHS, BMU, BRB, BRN, CAN, CHE, CYM, CYP, DEU, ESP,
-# FIN, FRA, FRO, GRL, HKG, HUN, IRL, ISL, ISR, ITA, JPN, KNA, KOR, LUX, MAC, MLT, NCL,
-# NZL, OMN, PAN, PLW, POL, PRT, PYF, QAT, SAU, SGP, SYC, TTO, TUR, URY, USA, VGB
-placebo.results_5 <- placebo.results[, MSE < 5*UK.MSE]
-placebo.results_10 <- placebo.results[, MSE < 10*UK.MSE]
-placebo.results_20 <- placebo.results[, MSE < 20*UK.MSE]
-
-# Plot
-pdf("Figures/Gaps in emissions_placebo_all.pdf", 
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, placebo.results[, which(colnames(placebo.results) == "GBR")],
-     type = "l", col = "darkorchid", lwd = 2,
-     xlim = range(years), 
-     ylim = c(-1, 1), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Gap between Treated and Synthetic Control",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-abline(v = 2001, lty = 2)
-abline(h = 0, lty = 1, col = "darkgrey")
-for (i in 1:ncol(placebo.results)){
-  lines(years, placebo.results[, i], col = "gray") 
-}
-lines(years, placebo.results[, which(colnames(placebo.results) == "GBR")],
-      type = "l", col = "darkorchid", lwd = 2)
-arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.92, "CCP enacted", cex = 0.8)
-dev.off()
-
-# Plot excluding placebos with MSPE > 5
-pdf("Figures/Gaps in emissions_placebo_MSPE5.pdf", 
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, placebo.results_5[, which(colnames(placebo.results_5) == "GBR")],
-     type = "l", col = "darkorchid", lwd = 2,
-     xlim = range(years), 
-     ylim = c(-1, 1), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Gap between Treated and Synthetic Control",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-abline(v = 2001, lty = 2)
-abline(h = 0, lty = 1, col = "darkgrey")
-for (i in 1:ncol(placebo.results_5)){
-  lines(years, placebo.results_5[, i], col = "gray") 
-}
-lines(years, placebo.results_5[, which(colnames(placebo.results_5) == "GBR")],
-      type = "l", col = "darkorchid", lwd = 2)
-arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.92, "CCP enacted", cex = 0.8)
-dev.off()
-
-# Plot excluding placebos with MSPE > 10
-pdf("Figures/Gaps in emissions_placebo_MSPE10.pdf", 
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, placebo.results_10[, which(colnames(placebo.results_10) == "GBR")],
-     type = "l", col = "darkorchid", lwd = 2,
-     xlim = range(years), 
-     ylim = c(-1, 1), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Gap between Treated and Synthetic Control",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-abline(v = 2001, lty = 2)
-abline(h = 0, lty = 1, col = "darkgrey")
-for (i in 1:ncol(placebo.results_10)){
-  lines(years, placebo.results_10[, i], col = "gray") 
-}
-lines(years, placebo.results_10[, which(colnames(placebo.results_10) == "GBR")],
-      type = "l", col = "darkorchid", lwd = 2)
-arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.92, "CCP enacted", cex = 0.8)
-dev.off()
-
-# Plot excluding placebos with MSPE > 20
-pdf("Figures/Gaps in emissions_placebo_MSPE20.pdf", 
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, placebo.results_20[, which(colnames(placebo.results_20) == "GBR")],
-     type = "l", col = "darkorchid", lwd = 2,
-     xlim = range(years), 
-     ylim = c(-1, 1), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Gap between Treated and Synthetic Control",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo countries", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-abline(v = 2001, lty = 2)
-abline(h = 0, lty = 1, col = "darkgrey")
-for (i in 1:ncol(placebo.results_20)){
-  lines(years, placebo.results_20[, i], col = "gray") 
-}
-lines(years, placebo.results_20[, which(colnames(placebo.results_20) == "GBR")],
-      type = "l", col = "darkorchid", lwd = 2)
-arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.92, "CCP enacted", cex = 0.8)
-dev.off()
-
-# How many control states remain?
-colnames(placebo.results_5)
-# 4 control states
-
-
-# .. MSPE analysis ####
-placebo.results <- store.gaps
+gap.start.post <- which(rownames(placebo.results) == "2002")
 
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- apply(placebo.results[gap.start:gap.end.pre, ]^2, 2, mean)
 UK.pre.MSE <- as.numeric(pre.MSE["GBR"])
 
 # Mean Square Prediction Error Post-Treatment
-gap.start.post <- which(rownames(placebo.results) == "2002")
 post.MSE <- apply(placebo.results[gap.start.post:gap.end, ]^2, 2, mean)
 UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
-# Ratio of post-treatment MSPE to pre-treatment MSPE
+# Exclude countries with 5 times higher MSPE than UK
+colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
+# Exclude ABW, ARE, ARG, AUS, AUT, BEL, BHR, BHS, BMU, BRB, BRN, CAN, CHE, CYM, CYP, DEU, ESP,
+# FIN, FRA, FRO, GRL, HKG, HUN, IRL, ISL, ISR, ITA, JPN, KNA, KOR, LUX, MAC, MLT, NCL,
+# NZL, OMN, PAN, PLW, POL, PRT, PYF, QAT, SAU, SGP, SYC, TTO, TUR, URY, USA, VGB
+
+MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
+MSPE10 <- colnames(placebo.results[, pre.MSE < 10*UK.pre.MSE])
+MSPE20 <- colnames(placebo.results[, pre.MSE < 20*UK.pre.MSE])
+
+plot.gaps <- placebo.results %>%
+  mutate(Year = years) %>%
+  melt(id.vars = "Year", value.name = "Gaps", variable.name = "Country")
+plot.gaps5 <- plot.gaps %>%
+  filter(Country %in% MSPE5)
+plot.gaps10 <- plot.gaps %>%
+  filter(Country %in% MSPE10)
+plot.gaps20 <- plot.gaps %>%
+  filter(Country %in% MSPE20)
+
+# Plot all
+g <- ggplot(plot.gaps) +
+  geom_line(data = plot.gaps %>%
+              filter(Country != "GBR"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", plot.gaps %>%
+                                    filter(Country != "GBR") %>%
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.gaps %>%
+              filter(Country == "GBR"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Re-assigning treatment to placebo countries",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.9, yend = -0.9,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.9,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold")
+ggsave(g,
+       file = "Figures/Gaps in emissions_placebo_all.pdf",
+       height = 4.5, width = 6, units = "in")
+
+# Plot excluding placebos with MSPE > 5
+g <- ggplot(plot.gaps5) +
+  geom_line(data = plot.gaps5 %>%
+              filter(Country != "GBR"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", plot.gaps5 %>% 
+                                    filter(Country != "GBR") %>% 
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.gaps5 %>%
+              filter(Country == "GBR"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Re-assigning treatment to placebo countries",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.9, yend = -0.9,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.9,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold")
+ggsave(g,
+       file = "Figures/Gaps in emissions_placebo_MSPE5.pdf",
+       height = 4.5, width = 6, units = "in")
+
+# Plot excluding placebos with MSPE > 10
+g <- ggplot(plot.gaps10) +
+  geom_line(data = plot.gaps10 %>%
+              filter(Country != "GBR"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", plot.gaps10 %>% 
+                                    filter(Country != "GBR") %>% 
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.gaps10 %>%
+              filter(Country == "GBR"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Re-assigning treatment to placebo countries",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.9, yend = -0.9,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.9,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold")
+ggsave(g,
+       file = "Figures/Gaps in emissions_placebo_MSPE10.pdf",
+       height = 4.5, width = 6, units = "in")
+
+# Plot excluding placebos with MSPE > 20
+g <- ggplot(plot.gaps20) +
+  geom_line(data = plot.gaps20 %>%
+              filter(Country != "GBR"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", plot.gaps20 %>% 
+                                    filter(Country != "GBR") %>% 
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.gaps20 %>%
+              filter(Country == "GBR"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Re-assigning treatment to placebo countries",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.9, yend = -0.9,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.9,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold")
+ggsave(g,
+       file = "Figures/Gaps in emissions_placebo_MSPE20.pdf",
+       height = 4.5, width = 6, units = "in")
+
+# How many control states remain?
+plot.gaps5 %>% distinct(Country)
+# 4 control states
+
+
+# .. Ratio of post-treatment MSPE to pre-treatment MSPE ####
 ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 # For the UK, the post-treatment gap is 1130 times larger than
@@ -978,6 +1027,7 @@ sort(ratio.MSE)
 # 2/54 = 0.03703704
 
 # Plot
+placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
                   pre.MSE = pre.MSE,
                   post.MSE = post.MSE,
@@ -986,8 +1036,8 @@ MSE <- data.frame(country = names(pre.MSE),
   mutate(col = ifelse(country == "GBR", "darkorchid", "grey"))
 
 g <- ggplot(MSE,
-       aes(x = reorder(country, ratio), y = log(ratio),
-           fill = col)) +
+            aes(x = reorder(country, ratio), y = log(ratio),
+                fill = col)) +
   geom_col() +
   scale_fill_manual(values = c("darkorchid", "grey35")) +
   guides(fill = F) +
@@ -1034,8 +1084,8 @@ ggsave(g,
        height = 5, width = 6, units = "in")
 
 g <- ggplot(MSE %>%
-         filter(TE2005 < 0),
-       aes(x = ratio)) +
+              filter(TE2005 < 0),
+            aes(x = ratio)) +
   geom_density(fill = "grey35",
                col = "grey35") +
   labs(title = "Empirical distribution of ratio",
@@ -1059,9 +1109,9 @@ g <- ggplot(MSE %>%
 ggsave(g,
        file = "Figures/Empirical distribution_One-sided.pdf",
        height = 5, width = 6, units = "in")
-  
+
 g <- ggplot(MSE,
-       aes(x = ratio)) +
+            aes(x = ratio)) +
   geom_density(fill = "grey35",
                col = "grey35") +
   scale_x_continuous(labels = comma) +
@@ -1099,94 +1149,291 @@ leaveoneout.names <- whodat(leaveoneout.controls)
 leaveoneout.names <- append(leaveoneout.names, "Dropped", length(leaveoneout.names))
 leaveoneout.names
 
-store <- matrix(NA, length(years), length(leaveoneout.names))
-colnames(store) <- paste0("No_", leaveoneout.names)
-store
+store.gaps <- matrix(NA, length(years), length(leaveoneout.names))
+colnames(store.gaps) <- paste0("No_", leaveoneout.names)
+store.gaps
 
 nloops <- length(leaveoneout.controls)+1
 
-for (i in 1:nloops){
-  controls.identifier = leaveoneout.controls[-i]
-  print(controls.identifier)
-}
-
-for (i in 1:nloops){
-  dataprep.out <-
-    dataprep(foo = data,
-             predictors = NULL,
-             predictors.op = NULL,
-             time.predictors.prior = choose.time.predictors,
-             special.predictors = list(
-               list("EN.ATM.CO2E.PC", 1990, "mean"),
-               list("EN.ATM.CO2E.PC", 1991, "mean"),
-               list("EN.ATM.CO2E.PC", 1992, "mean"),
-               list("EN.ATM.CO2E.PC", 1993, "mean"),
-               list("EN.ATM.CO2E.PC", 1994, "mean"),
-               list("EN.ATM.CO2E.PC", 1995, "mean"),
-               list("EN.ATM.CO2E.PC", 1996, "mean"),
-               list("EN.ATM.CO2E.PC", 1997, "mean"),
-               list("EN.ATM.CO2E.PC", 1998, "mean"),
-               list("EN.ATM.CO2E.PC", 1999, "mean"),
-               list("EN.ATM.CO2E.PC", 2000, "mean"),
-               list("EN.ATM.CO2E.PC", 2001, "mean")),
-             dependent = "EN.ATM.CO2E.PC",
-             unit.variable = "countryid",
-             unit.names.variable = "country",
-             time.variable = "year",
-             treatment.identifier = treated.unit,
-             controls.identifier = leaveoneout.controls[-i],
-             time.optimize.ssr = choose.time.predictors,
-             time.plot = 1990:2005)
-
-
-  # .. Running Synth ####
-  synth.out <- synth(data.prep.obj = dataprep.out)
-
-
-  # .. Calculating annual gaps between the UK and its synthetic counterpart ####
-  store[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
-}
-
-save(store, file = "Results/Leave-one-out/store.Rdata")
+# for (i in 1:nloops){
+#   controls.identifier = leaveoneout.controls[-i]
+#   print(controls.identifier)
+# }
+# 
+# for (i in 1:nloops){
+#   dataprep.out <-
+#     dataprep(foo = data,
+#              predictors = NULL,
+#              predictors.op = NULL,
+#              time.predictors.prior = choose.time.predictors,
+#              special.predictors = list(
+#                list("EN.ATM.CO2E.PC", 1990, "mean"),
+#                list("EN.ATM.CO2E.PC", 1991, "mean"),
+#                list("EN.ATM.CO2E.PC", 1992, "mean"),
+#                list("EN.ATM.CO2E.PC", 1993, "mean"),
+#                list("EN.ATM.CO2E.PC", 1994, "mean"),
+#                list("EN.ATM.CO2E.PC", 1995, "mean"),
+#                list("EN.ATM.CO2E.PC", 1996, "mean"),
+#                list("EN.ATM.CO2E.PC", 1997, "mean"),
+#                list("EN.ATM.CO2E.PC", 1998, "mean"),
+#                list("EN.ATM.CO2E.PC", 1999, "mean"),
+#                list("EN.ATM.CO2E.PC", 2000, "mean"),
+#                list("EN.ATM.CO2E.PC", 2001, "mean")),
+#              dependent = "EN.ATM.CO2E.PC",
+#              unit.variable = "countryid",
+#              unit.names.variable = "country",
+#              time.variable = "year",
+#              treatment.identifier = treated.unit,
+#              controls.identifier = leaveoneout.controls[-i],
+#              time.optimize.ssr = choose.time.predictors,
+#              time.plot = 1990:2005)
+# 
+# 
+#   # .. Running Synth ####
+#   synth.out <- synth(data.prep.obj = dataprep.out)
+# 
+# 
+#   # .. Calculating annual gaps between the UK and its synthetic counterpart ####
+#   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
+# }
+# 
+# save(store.gaps, file = "Results/Leave-one-out/store.gaps.Rdata")
+load("Results/Leave-one-out/store.gaps.Rdata")
 
 
 # .. Leave-one-out figure ####
-leaveoneout.results <- store
-rownames(leaveoneout.results) <- years
-leaveoneout.results
+leaveoneout.results <- data.frame(store.gaps)
+
+plot.LOO <- leaveoneout.results %>%
+  mutate(Year = years) %>%
+  melt(id.vars = "Year", value.name = "Gaps", variable.name = "Country")
 
 # Plot
-pdf("Figures/Gaps in emissions_leave one out.pdf", 
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, leaveoneout.results[, which(colnames(leaveoneout.results) == "No_Dropped")],
-     type = "l", col = "darkorchid", lwd = 2,
-     xlim = range(years), 
-     ylim = c(-1, 1), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Gap between Treated and Synthetic Control",
-     frame.plot = FALSE, axes = F)
-mtext("Leave-one-out robustness check", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-abline(v = 2001, lty = 2)
-abline(h = 0, lty = 1, col = "darkgrey")
-for (i in 1:ncol(leaveoneout.results)){
-  lines(years, leaveoneout.results[, i], col = "thistle") 
+g <- ggplot(plot.LOO) +
+  geom_line(data = plot.LOO %>%
+              filter(Country != "GBR"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("thistle", plot.LOO %>%
+                                    filter(Country != "GBR") %>%
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.gaps %>%
+              filter(Country == "GBR"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Re-assigning treatment to placebo countries",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.9, yend = -0.9,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.9,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold")
+ggsave(g,
+       file = "Figures/Gaps in emissions_leave one out.pdf",
+       height = 4.5, width = 6, units = "in")
+
+
+
+## ## ## ## ## ## ## ## ## ## ##
+# PLACEBO YEARS             ####
+## ## ## ## ## ## ## ## ## ## ##
+
+whatname(control.units)
+placebo.years <- c(seq(1991, 2001))
+
+store.synth <- matrix(NA, length(1990:2005), length(placebo.years))
+colnames(store.synth) <- paste("Tx_", c(seq(1991, 2001)), sep = "")
+store.synth
+
+pred2001 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"),
+  list("EN.ATM.CO2E.PC", 1995, "mean"),
+  list("EN.ATM.CO2E.PC", 1996, "mean"),
+  list("EN.ATM.CO2E.PC", 1997, "mean"),
+  list("EN.ATM.CO2E.PC", 1998, "mean"),
+  list("EN.ATM.CO2E.PC", 1999, "mean"),
+  list("EN.ATM.CO2E.PC", 2000, "mean"),
+  list("EN.ATM.CO2E.PC", 2001, "mean"))
+pred2000 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"),
+  list("EN.ATM.CO2E.PC", 1995, "mean"),
+  list("EN.ATM.CO2E.PC", 1996, "mean"),
+  list("EN.ATM.CO2E.PC", 1997, "mean"),
+  list("EN.ATM.CO2E.PC", 1998, "mean"),
+  list("EN.ATM.CO2E.PC", 1999, "mean"),
+  list("EN.ATM.CO2E.PC", 2000, "mean"))
+pred1999 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"),
+  list("EN.ATM.CO2E.PC", 1995, "mean"),
+  list("EN.ATM.CO2E.PC", 1996, "mean"),
+  list("EN.ATM.CO2E.PC", 1997, "mean"),
+  list("EN.ATM.CO2E.PC", 1998, "mean"),
+  list("EN.ATM.CO2E.PC", 1999, "mean"))
+pred1998 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"),
+  list("EN.ATM.CO2E.PC", 1995, "mean"),
+  list("EN.ATM.CO2E.PC", 1996, "mean"),
+  list("EN.ATM.CO2E.PC", 1997, "mean"),
+  list("EN.ATM.CO2E.PC", 1998, "mean"))
+pred1997 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"),
+  list("EN.ATM.CO2E.PC", 1995, "mean"),
+  list("EN.ATM.CO2E.PC", 1996, "mean"),
+  list("EN.ATM.CO2E.PC", 1997, "mean"))
+pred1996 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"),
+  list("EN.ATM.CO2E.PC", 1995, "mean"),
+  list("EN.ATM.CO2E.PC", 1996, "mean"))
+pred1995 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"),
+  list("EN.ATM.CO2E.PC", 1995, "mean"))
+pred1994 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"),
+  list("EN.ATM.CO2E.PC", 1994, "mean"))
+pred1993 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"),
+  list("EN.ATM.CO2E.PC", 1993, "mean"))
+pred1992 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"),
+  list("EN.ATM.CO2E.PC", 1992, "mean"))
+pred1991 <- list(
+  list("EN.ATM.CO2E.PC", 1990, "mean"),
+  list("EN.ATM.CO2E.PC", 1991, "mean"))
+
+# for (y in 1:ncol(store.synth)){
+#   placebo.year <- substr(colnames(store.synth)[y], 4, 7)
+#   choose.time.predictors <- 1990:placebo.year
+#   
+#   dataprep.out <-
+#     dataprep(foo = data,
+#              predictors = NULL,
+#              predictors.op = NULL,
+#              time.predictors.prior = choose.time.predictors,
+#              special.predictors = get(paste0("pred", placebo.year)),
+#              dependent = "EN.ATM.CO2E.PC",
+#              unit.variable = "countryid",
+#              unit.names.variable = "country",
+#              time.variable = "year",
+#              treatment.identifier = treated.unit,
+#              controls.identifier = c(control.units),
+#              time.optimize.ssr = choose.time.predictors,
+#              time.plot = 1990:2005)
+#   
+#   
+#   # .. Running Synth ####
+#   synth.out <- synth(data.prep.obj = dataprep.out)
+#   
+#   # .. Store emissions paths ####
+#   store.synth[,y] <- dataprep.out$Y0plot %*% synth.out$solution.w
+# }
+#
+# save(store.synth, file = "Results/Placebo years/store.synth.Rdata")
+load("Results/Placebo years/store.synth.Rdata")
+
+plot <- data.frame(years = years,
+                   treated = dataprep.out$Y1plot,
+                   store.synth) %>%
+  rename(treated = X50)
+plot <- plot %>%
+  melt(id.vars = "years", value.name = "emissions")
+
+
+# .. Figure ####
+g <- ggplot() +
+  geom_line(data = plot %>%
+              filter(variable == "treated" | variable == "Tx_2001"),
+            aes(x = years, y = emissions, 
+                col = variable, linetype = variable),
+            lwd = 1) +
+  scale_color_manual(values = c("#872341", "#BE3144"),
+                     labels = c("United Kingdom", "Synthetic UK")) +
+  scale_linetype_manual(values = c("solid", "dashed"),
+                        labels = c("United Kingdom", "Synthetic UK")) +
+  ylim(8, 11) +
+  labs(title = "Observed and Synthetic Counterfactual Emissions",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = 8.5, yend = 8.5,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches")),
+               show.legend = F) +
+  geom_text(x = 1997.5,
+            y = 8.5,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold") +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.132, 0.15))
+
+for (y in 1:(ncol(store.synth)-1)){
+  placebo.year <- substr(colnames(store.synth)[y], 4, 7)
+  p <- g + geom_line(data = plot %>%
+                       filter(variable == paste0("Tx_", placebo.year)),
+                     aes(x = years, y = emissions),
+                     col = "coral",
+                     lty = "dotted") +
+    geom_vline(xintercept = as.numeric(placebo.year),
+               col = "coral",
+               lty = "dotted") +
+    labs(subtitle = paste0("Re???assigning treatment to placebo year ",
+                           placebo.year))
+  ggsave(p,
+         file = paste0("Figures/Emissions paths in treated and synth_placebo year ",
+                       placebo.year, ".pdf"),
+         height = 4.5, width = 6, units = "in")
 }
-lines(years, leaveoneout.results[, which(colnames(leaveoneout.results) == "No_Dropped")],
-      type = "l", col = "darkorchid", lwd = 2)
-arrows(1999.5, -0.92, 2000.9, -0.92, length = 0.1, code = 2)
-text(1998, -0.92, "CCP enacted", cex = 0.8)
-dev.off()
 
 
 
@@ -1264,24 +1511,19 @@ donor.weights <- data.frame(synth.tab(dataprep.res = dataprep.out,
   arrange(Donor.weight)
 
 # Plot
-pdf("Figures/Supplementary Information/Donor weights_mobile.pdf", 
-    height = 4.5, width = 6)
-par(mar = c(2, 6.1, 2, 2.1), las = 2)
-a <- barplot(donor.weights$Donor.weight,
-             xaxt = "n",
-             main = "Donor weights",
-             names.arg = donor.weights$Donor.country,
-             cex.main = 0.9,
-             horiz = T,
-             space = 1,
-             cex.names = 0.45,
-             offset = -0.005,
-             xlim = c(0, 0.25))
-axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
-axis(side = 1, at = seq(0, 0.25, by = 0.05), 
-     cex.axis = 0.5, tck = -0.01, 
-     mgp = c(3, 0, 0), las = 1)
-dev.off()
+g <- ggplot(donor.weights,
+            aes(x = reorder(Donor.country, Donor.weight), 
+                y = Donor.weight)) +
+  geom_col(width = 0.8) +
+  coord_flip() +
+  theme_minimal() +
+  geom_text(aes(label = ifelse(Donor.weight < 1e-04, round(Donor.weight, 5), round(Donor.weight, 4))),
+            size = 2, nudge_x = 0, nudge_y = 0.01) +
+  labs(title = "Donor weights",
+       x = "", y = "") +
+  theme(axis.text.y = element_text(size = 6))
+ggsave(g, file = "Figures/Supplementary Information/Donor weights_mobile.pdf",
+       width = 6, height = 5, units = "in")
 
 
 # .. Generate results ####
@@ -1290,44 +1532,53 @@ years <- c(choose.time.predictors, seq(2002, 2005, 1))
 
 # Outcome variable in treated unit
 Y1plot.UK <- dataprep.out$Y1plot
+colnames(Y1plot.UK) <- "GBR"
 
 # Outcome variable in synthetic unit
 synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+colnames(synth) <- "GBR"
 
 # Gaps between outcomes in treated and synthetic control
-gaps <- dataprep.out$Y1plot - synth
-colnames(gaps) <- "GBR"
+gaps <- Y1plot.UK - synth
 
 
 # .. Emissions trajectories figure ####
-pdf("Figures/Supplementary Information/Emissions paths in treated and synth_mobile.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, Y1plot.UK, 
-     type = "l", col = "royalblue4", lwd = 2,
-     xlim = range(years), 
-     ylim = range(Y1plot.UK, synth), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
-abline(v = 2001, lty = 2)
-legend(1990, 7.98, c("United Kingdom", "Synthetic UK"),
-       lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8, 2000.9, 8, length = 0.1, code = 2)
-text(1997.5, 8.04, "CCP enacted", cex = 0.8)
-dev.off()
+plot <- data.frame(years = years,
+                   treated = Y1plot.UK,
+                   synth = synth)
+colnames(plot) <- c("years", "treated", "synth")
+plot <- plot %>%
+  melt(id.vars = "years", value.name = "emissions")
+
+g <- ggplot(plot,
+            aes(x = years, y = emissions, col = variable, linetype = variable)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = c("royalblue4", "royalblue1"),
+                     labels = c("United Kingdom", "Synthetic UK")) +
+  scale_linetype_manual(values = c("solid", "dashed"),
+                        labels = c("United Kingdom", "Synthetic UK")) +
+  labs(title = "Observed and Synthetic Counterfactual Emissions",
+       subtitle = "Mobile emissions",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = 8.5, yend = 8.5,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches")),
+               show.legend = F) +
+  geom_text(x = 1997.5,
+            y = 8.5,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold") +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.132, 0.115))
+ggsave(g,
+       file = "Figures/Supplementary Information/Emissions paths in treated and synth_mobile.pdf",
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Convert emissions per capita ####
@@ -1338,7 +1589,7 @@ synth.t <- left_join(data.frame(synth) %>%
                        filter(year >= 1990 & year <= 2005) %>%
                        select(year, SP.POP.TOTL),
                      by = c("year")) %>%
-  mutate(synth.t = w.weight * SP.POP.TOTL,
+  mutate(synth.t = GBR * SP.POP.TOTL,
          synth.Mt = synth.t / 10^6)
 
 gaps.t <- left_join(data.frame(gaps) %>%
@@ -1398,24 +1649,19 @@ donor.weights <- data.frame(synth.tab(dataprep.res = dataprep.out,
   arrange(Donor.weight)
 
 # Plot
-pdf("Figures/Supplementary Information/Donor weights_immobile.pdf", 
-    height = 4.5, width = 6)
-par(mar = c(2, 6.1, 2, 2.1), las = 2)
-a <- barplot(donor.weights$Donor.weight,
-             xaxt = "n",
-             main = "Donor weights",
-             names.arg = donor.weights$Donor.country,
-             cex.main = 0.9,
-             horiz = T,
-             space = 1,
-             cex.names = 0.45,
-             offset = -0.005,
-             xlim = c(0, 0.25))
-axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
-axis(side = 1, at = seq(0, 0.25, by = 0.05), 
-     cex.axis = 0.5, tck = -0.01, 
-     mgp = c(3, 0, 0), las = 1)
-dev.off()
+g <- ggplot(donor.weights,
+            aes(x = reorder(Donor.country, Donor.weight), 
+                y = Donor.weight)) +
+  geom_col(width = 0.8) +
+  coord_flip() +
+  theme_minimal() +
+  geom_text(aes(label = ifelse(Donor.weight < 1e-04, round(Donor.weight, 5), round(Donor.weight, 4))),
+            size = 2, nudge_x = 0, nudge_y = 0.01) +
+  labs(title = "Donor weights",
+       x = "", y = "") +
+  theme(axis.text.y = element_text(size = 6))
+ggsave(g, file = "Figures/Supplementary Information/Donor weights_immobile.pdf",
+       width = 6, height = 5, units = "in")
 
 
 # .. Generate results ####
@@ -1424,44 +1670,53 @@ years <- c(choose.time.predictors, seq(2002, 2005, 1))
 
 # Outcome variable in treated unit
 Y1plot.UK <- dataprep.out$Y1plot
+colnames(Y1plot.UK) <- "GBR"
 
 # Outcome variable in synthetic unit
 synth <- dataprep.out$Y0plot %*% synth.out$solution.w
+colnames(synth) <- "GBR"
 
 # Gaps between outcomes in treated and synthetic control
-gaps <- dataprep.out$Y1plot - synth
-colnames(gaps) <- "GBR"
+gaps <- Y1plot.UK - synth
 
 
 # .. Emissions trajectories figure ####
-pdf("Figures/Supplementary Information/Emissions paths in treated and synth_immobile.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, Y1plot.UK, 
-     type = "l", col = "royalblue4", lwd = 2,
-     xlim = range(years), 
-     ylim = range(Y1plot.UK, synth), 
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1, 
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, synth, col = "royalblue1", lty = 2, lwd = 2)
-abline(v = 2001, lty = 2)
-legend(1990, 7.98, c("United Kingdom", "Synthetic UK"),
-       lty = c(1,2), lwd = c(2,2), col = c("royalblue4", "royalblue1"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8, 2000.9, 8, length = 0.1, code = 2)
-text(1997.5, 8.04, "CCP enacted", cex = 0.8)
-dev.off()
+plot <- data.frame(years = years,
+                   treated = Y1plot.UK,
+                   synth = synth)
+colnames(plot) <- c("years", "treated", "synth")
+plot <- plot %>%
+  melt(id.vars = "years", value.name = "emissions")
+
+g <- ggplot(plot,
+            aes(x = years, y = emissions, col = variable, linetype = variable)) +
+  geom_line(lwd = 1) +
+  scale_color_manual(values = c("royalblue4", "royalblue1"),
+                     labels = c("United Kingdom", "Synthetic UK")) +
+  scale_linetype_manual(values = c("solid", "dashed"),
+                        labels = c("United Kingdom", "Synthetic UK")) +
+  labs(title = "Observed and Synthetic Counterfactual Emissions",
+       subtitle = "Immobile emissions",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = 8.5, yend = 8.5,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches")),
+               show.legend = F) +
+  geom_text(x = 1997.5,
+            y = 8.5,
+            label = "CCP enacted",
+            col = "black",
+            fontface = "bold") +
+  theme(legend.title = element_blank(),
+        legend.position = c(0.132, 0.115))
+ggsave(g,
+       file = "Figures/Supplementary Information/Emissions paths in treated and synth_immobile.pdf",
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Convert emissions per capita ####
@@ -1472,7 +1727,7 @@ synth.t <- left_join(data.frame(synth) %>%
                        filter(year >= 1990 & year <= 2005) %>%
                        select(year, SP.POP.TOTL),
                      by = c("year")) %>%
-  mutate(synth.t = w.weight * SP.POP.TOTL,
+  mutate(synth.t = GBR * SP.POP.TOTL,
          synth.Mt = synth.t / 10^6)
 
 gaps.t <- left_join(data.frame(gaps) %>%
@@ -1491,655 +1746,6 @@ gaps.t %>%
 
 
 
-## ## ## ## ## ## ## ## ## ## ##
-# RE-ASSIGN TREATMENT YEAR  ####
-## ## ## ## ## ## ## ## ## ## ##
-
-whatname(control.units)
-placebo.years <- c(seq(1991, 2001))
-
-store.synth <- matrix(NA, length(1990:2005), length(placebo.years))
-colnames(store.synth) <- paste("Tx_", c(seq(1991, 2001)), sep = "")
-store.synth
-
-
-# .. Treatment in 2001 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = choose.time.predictors,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995, "mean"),
-             list("EN.ATM.CO2E.PC", 1996, "mean"),
-             list("EN.ATM.CO2E.PC", 1997, "mean"),
-             list("EN.ATM.CO2E.PC", 1998, "mean"),
-             list("EN.ATM.CO2E.PC", 1999, "mean"),
-             list("EN.ATM.CO2E.PC", 2000, "mean"),
-             list("EN.ATM.CO2E.PC", 2001, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = choose.time.predictors,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,11] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-
-# .. Treatment in 2000 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:2000,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995, "mean"),
-             list("EN.ATM.CO2E.PC", 1996, "mean"),
-             list("EN.ATM.CO2E.PC", 1997, "mean"),
-             list("EN.ATM.CO2E.PC", 1998, "mean"),
-             list("EN.ATM.CO2E.PC", 1999, "mean"),
-             list("EN.ATM.CO2E.PC", 2000, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:2000,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,10] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 2000.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions per capita")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 2000", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,10], col = "coral", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 2000, lty = 2, col = "coral")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1999 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1999,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995, "mean"),
-             list("EN.ATM.CO2E.PC", 1996, "mean"),
-             list("EN.ATM.CO2E.PC", 1997, "mean"),
-             list("EN.ATM.CO2E.PC", 1998, "mean"),
-             list("EN.ATM.CO2E.PC", 1999, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1999,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,9] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1999.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1999", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,9], col = "cornflowerblue", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1999, lty = 2, col = "cornflowerblue")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1998 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1998,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995, "mean"),
-             list("EN.ATM.CO2E.PC", 1996, "mean"),
-             list("EN.ATM.CO2E.PC", 1997, "mean"),
-             list("EN.ATM.CO2E.PC", 1998, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1998,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,8] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1998.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1998", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,8], col = "chocolate", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1998, lty = 2, col = "chocolate")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1997 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1997,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995, "mean"),
-             list("EN.ATM.CO2E.PC", 1996, "mean"),
-             list("EN.ATM.CO2E.PC", 1997, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1997,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,7] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1997.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1997", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,7], col = "darkorchid", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1997, lty = 2, col = "darkorchid")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1996 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1996,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995, "mean"),
-             list("EN.ATM.CO2E.PC", 1996, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1996,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,6] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1996.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1996", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,6], col = "darkgoldenrod1", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1996, lty = 2, col = "darkgoldenrod1")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1995 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1995,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean"),
-             list("EN.ATM.CO2E.PC", 1995, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1995,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,5] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1995.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1995", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,5], col = "mediumseagreen", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1995, lty = 2, col = "mediumseagreen")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1994 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1994,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean"),
-             list("EN.ATM.CO2E.PC", 1994, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1994,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,4] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1994.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1994", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,4], col = "deeppink", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1994, lty = 2, col = "deeppink")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1993 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1993,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean"),
-             list("EN.ATM.CO2E.PC", 1993, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1993,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,3] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1993.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1993", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,3], col = "darkviolet", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1993, lty = 2, col = "darkviolet")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1992 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1992,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1992,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,2] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1992.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1992", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,2], col = "darkturquoise", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1992, lty = 2, col = "darkturquoise")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
-
-
-# .. Treatment in 1991 ####
-dataprep.out <-
-  dataprep(foo = data,
-           predictors = NULL,
-           predictors.op = NULL,
-           time.predictors.prior = 1990:1992,
-           special.predictors = list(
-             list("EN.ATM.CO2E.PC", 1990, "mean"),
-             list("EN.ATM.CO2E.PC", 1991, "mean"),
-             list("EN.ATM.CO2E.PC", 1992, "mean")),
-           dependent = "EN.ATM.CO2E.PC",
-           unit.variable = "countryid",
-           unit.names.variable = "country",
-           time.variable = "year",
-           treatment.identifier = treated.unit,
-           controls.identifier = c(control.units),
-           time.optimize.ssr = 1990:1992,
-           time.plot = 1990:2005)
-
-synth.out <- synth(data.prep.obj = dataprep.out)
-
-store.synth[,1] <- dataprep.out$Y0plot %*% synth.out$solution.w
-
-# Plot
-pdf("Figures/Emissions paths in treated and synth_placebo year 1991.pdf",
-    height = 4.5, width = 6)
-plot(0, 0, type = "n", ann = FALSE, axes = FALSE)
-u <- par("usr") # The coordinates of the plot area
-rect(u[1], u[3], u[2], u[4], col = "grey90", border = NA)
-grid (NULL, NULL, lty = 1, col = "seashell")
-par(new = TRUE, mgp = c(2, 1, 0))
-plot(years, dataprep.out$Y1plot,
-     type = "l", col = "#872341", lwd = 2,
-     xlim = range(years), 
-     ylim = c(8, 11),
-     las = 1, cex.axis = 0.8, tck = -0.05,
-     xlab = "Year",
-     ylab = expression(paste("CO"[2], " emissions relative to 1990")),
-     main = "Observed and Synthetic Counterfactual Emissions",
-     frame.plot = FALSE, axes = F)
-mtext("Re-assigning treatment to placebo year 1991", side = 3, line = 0.4, font = 3)
-axis(side = 1, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(0, 0.2, 0))
-axis(side = 2, cex.axis = 0.8, lwd = 0, lwd.ticks = 1,
-     tck = -0.01, mgp = c(3, 0.5, 0), las = 2)
-lines(years, store.synth[,11], col = "#BE3144", lty = 2, lwd = 2)
-lines(years, store.synth[,1], col = "palevioletred4", lty = 2)
-abline(v = 2001, lty = 2)
-abline(v = 1991, lty = 2, col = "palevioletred4")
-legend(1990, 8.75, c("United Kingdom", "Synthetic UK"),
-       lty = c(1, 2), lwd = c(2, 2), col = c("#872341", "#BE3144"),
-       cex = 0.8, box.col = "seashell", bg = "seashell")
-arrows(1999, 8.5, 2000.9, 8.5, length = 0.1, code = 2)
-text(1997.5, 8.5, "CCP enacted", cex = 0.8)
-dev.off()
 
 
 
@@ -2260,7 +1866,7 @@ Y1plot.UK == Y.tr.mbal
 gaps.mbal <- mbal.out$att
 
 
-# .. Placebo loops ####
+# .. Placebo countries ####
 data.placebo <- data %>%
   filter(countrycode != "GBR")
 
@@ -2285,7 +1891,7 @@ for (i in 1:nloops){
   
   # Weights for countries in the donor pool
   weights.mbal <- mbal.out$weights.co
-
+  
   # Outcome variable in synthetic unit
   synth.mbal <- mbal.out$Y.bar[, "Y.ct.bar"]
   
