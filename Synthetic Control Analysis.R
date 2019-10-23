@@ -7,6 +7,7 @@
 # Preamble
 # Functions
 # Data
+# .. Import emissions for Germany from CDIAC
 # .. Import indicators from WDI
 # .. Create outcome variables
 # .. Drop missing data and specific donors
@@ -82,6 +83,8 @@ library(kableExtra)
 library(Matching)
 library(paletteer)
 library(plyr)
+library(reshape2)
+library(scales)
 library(stargazer)
 library(Synth)
 library(tidyverse)
@@ -507,24 +510,19 @@ kable(bal,
       format = "latex")
 
 # Plot
-pdf("Figures/Donor weights.pdf", 
-    height = 4.5, width = 6)
-par(mar = c(2, 6.1, 2, 2.1), las = 2)
-a <- barplot(donor.weights$Donor.weight,
-             xaxt = "n",
-             main = "Donor weights",
-             names.arg = donor.weights$Donor.country,
-             cex.main = 0.9,
-             horiz = T,
-             space = 1,
-             cex.names = 0.45,
-             offset = -0.005,
-             xlim = c(0, 0.25))
-axis(side = 1, at = c(0, 0.3), labels = c("", ""), lwd.ticks = 0)
-axis(side = 1, at = seq(0, 0.25, by = 0.05), 
-     cex.axis = 0.5, tck = -0.01, 
-     mgp = c(3, 0, 0), las = 1)
-dev.off()
+g <- ggplot(donor.weights,
+       aes(x = reorder(Donor.country, Donor.weight), y = Donor.weight)) +
+  geom_col(width = 0.8) +
+  coord_flip() +
+  theme_minimal() +
+  geom_text(aes(label = ifelse(Donor.weight < 1e-04, round(Donor.weight, 5), round(Donor.weight, 4))),
+            size = 2, nudge_x = 0, nudge_y = 0.01) +
+  labs(title = "Donor weights",
+       x = "", y = "") +
+  theme(axis.text.y = element_text(size = 6))
+ggsave(g, file = "Figures/Donor weights.pdf",
+       width = 6, height = 5, units = "in")
+
 
 
 
@@ -594,6 +592,7 @@ bal <- data.frame(bal) %>%
          Unweighted = Treated - Sample.Mean) %>%
   select(Weighted, Unweighted) %>%
   as.matrix
+
 pdf("Figures/Balance figure.pdf",
     height = 4.5, width = 6)
 dotchart(bal,
@@ -979,25 +978,114 @@ sort(ratio.MSE)
 # 2/54 = 0.03703704
 
 # Plot
-pdf("Figures/MSPE Ratio.pdf", 
-    height = 4.5, width = 6)
-cols <- ifelse(names(sort(ratio.MSE)) == "GBR", "darkorchid", "grey")
-a <- barplot(sort(ratio.MSE),
-        xaxt = "n",
-        yaxt = "n",
-        col = cols,
-        main = "Ratio of post-treatment MSPE to pre-treatment MSPE",
-        cex.main = 0.9)
-labs <- names(sort(ratio.MSE))
-lab.cols <- ifelse(names(sort(ratio.MSE)) == "GBR", "darkorchid", "black")
-text(a[,1], y = -200, 
-     labels = labs, xpd = TRUE, srt = 60, adj = 1, cex = 0.5,
-     col = lab.cols)
-axis(side = 2, at = axTicks(2), 
-     cex.axis = 0.7, lwd.ticks = 1, tck = -0.01, 
-     mgp = c(3, 0.5, 0), las = 2,
-     labels = formatC(axTicks(2), format = "d", big.mark = ','))
-dev.off()
+MSE <- data.frame(country = names(pre.MSE),
+                  pre.MSE = pre.MSE,
+                  post.MSE = post.MSE,
+                  ratio = post.MSE/pre.MSE,
+                  TE2005 = placebo.results[gap.end,]) %>%
+  mutate(col = ifelse(country == "GBR", "darkorchid", "grey"))
+
+g <- ggplot(MSE,
+       aes(x = reorder(country, ratio), y = log(ratio),
+           fill = col)) +
+  geom_col() +
+  scale_fill_manual(values = c("darkorchid", "grey35")) +
+  guides(fill = F) +
+  labs(title = "Log of ratio of post-treatment MSPE to pre-treatment MSPE",
+       subtitle = "Two-sided test",
+       x = "",
+       y = "") +
+  theme(axis.text.x = element_text(angle = 90, size = 6, vjust = 0.5))
+ggsave(g,
+       file = "Figures/Log MSPE ratio_Two-sided.pdf",
+       height = 5, width = 6, units = "in")
+
+g <- ggplot(MSE,
+            aes(x = reorder(country, ratio), y = ratio,
+                fill = col)) +
+  geom_col() +
+  scale_fill_manual(values = c("darkorchid", "grey35")) +
+  scale_y_continuous(labels = comma) +
+  guides(fill = F) +
+  labs(title = "Ratio of post-treatment MSPE to pre-treatment MSPE",
+       subtitle = "Two-sided test",
+       x = "",
+       y = "") +
+  theme(axis.text.x = element_text(angle = 90, size = 6, vjust = 0.5))
+ggsave(g,
+       file = "Figures/MSPE ratio_Two-sided.pdf",
+       height = 5, width = 6, units = "in")
+
+g <- ggplot(MSE %>%
+              filter(TE2005 < 0),
+            aes(x = reorder(country, ratio), y = ratio,
+                fill = col)) +
+  geom_col() +
+  scale_fill_manual(values = c("darkorchid", "grey35")) +
+  scale_y_continuous(labels = comma) +
+  guides(fill = F) +
+  labs(title = "Ratio of post-treatment MSPE to pre-treatment MSPE",
+       subtitle = "One-sided test",
+       x = "",
+       y = "") +
+  theme(axis.text.x = element_text(angle = 90, size = 8, vjust = 0.5))
+ggsave(g,
+       file = "Figures/MSPE ratio_One-sided.pdf",
+       height = 5, width = 6, units = "in")
+
+g <- ggplot(MSE %>%
+         filter(TE2005 < 0),
+       aes(x = ratio)) +
+  geom_density(fill = "grey35",
+               col = "grey35") +
+  labs(title = "Empirical distribution of ratio",
+       subtitle = "One-sided test",
+       x = "Ratio of post-treatment MSPE to pre-treatment MSPE",
+       y = "Density") +
+  geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 30,
+               xend = 1000,
+               y = 0.001,
+               yend = 0.003,
+               col = "darkorchid",
+               arrow = arrow(ends = "first", type = "closed",
+                             length = unit(0.1, "inches")),
+               arrow.fill = "darkorchid") +
+  geom_text(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 30,
+            y = 0.0035,
+            label = "United Kingdom",
+            col = "darkorchid",
+            hjust = 1,
+            fontface = "bold")
+ggsave(g,
+       file = "Figures/Empirical distribution_One-sided.pdf",
+       height = 5, width = 6, units = "in")
+  
+g <- ggplot(MSE,
+       aes(x = ratio)) +
+  geom_density(fill = "grey35",
+               col = "grey35") +
+  scale_x_continuous(labels = comma) +
+  labs(title = "Empirical distribution of ratio",
+       subtitle = "Two-sided test",
+       x = "Ratio of post-treatment MSPE to pre-treatment MSPE",
+       y = "Density") +
+  geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull + 100,
+               xend = 2500,
+               y = 0.0005,
+               yend = 0.0025,
+               col = "darkorchid",
+               arrow = arrow(ends = "first", type = "closed",
+                             length = unit(0.1, "inches")),
+               arrow.fill = "darkorchid") +
+  geom_text(x = 2500,
+            y = 0.0028,
+            label = "United Kingdom",
+            col = "darkorchid",
+            hjust = 0.4,
+            fontface = "bold")
+ggsave(g,
+       file = "Figures/Empirical distribution_Two-sided.pdf",
+       height = 5, width = 6, units = "in")
 
 
 
