@@ -13,7 +13,7 @@
 # .. Drop missing data and specific donors
 # .. Figures of summary statistics
 # Specification in Paper
-# .. Optimize over 1990-2001, CO2 per capita, no covariates
+# .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high income
 # Synth
 # .. Running Synth 
 # .. Pre-treatment predictor values 
@@ -66,8 +66,8 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
 library(ggrepel)
@@ -413,7 +413,7 @@ rm(codes, countries, indicators, missing, nmiss,
 load("Data/data_OECD_HIC.RData")
 whoder()
 
-# .. Optimize over 1990-2001, CO2 per capita, no covariates ####
+# .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high income ####
 treated.unit <- data %>%
   filter(countrycode == "GBR") %>%
   distinct(countryid) %>%
@@ -820,7 +820,7 @@ for (c in 1:length(countries)){
     geom_vline(xintercept = 2001,
                lty = 2)
   ggsave(g,
-         file = paste0("Figures/Emissions paths in treated and synth_", country, ".pdf"),
+         file = paste0("Figures/Emissions paths in placebo and synth_", country, ".pdf"),
          height = 4.5, width = 6, units = "in")
 }
 
@@ -1023,6 +1023,8 @@ plot.gaps5 %>% distinct(Country)
 # .. Ratio of post-treatment MSPE to pre-treatment MSPE ####
 ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
+ratio.MSE["GBR"]
+(length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
 # For the UK, the post-treatment gap is 1130 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
@@ -1161,11 +1163,6 @@ colnames(store.gaps) <- paste0("No_", leaveoneout.names)
 store.gaps
 
 nloops <- length(leaveoneout.controls)+1
-
-for (i in 1:nloops){
-  controls.identifier = leaveoneout.controls[-i]
-  print(controls.identifier)
-}
 
 for (i in 1:nloops){
   dataprep.out <-
