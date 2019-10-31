@@ -188,8 +188,7 @@ dataprep.out <-
              list("EN.ATM.CO2E.PC", 1997, "mean"),
              list("EN.ATM.CO2E.PC", 1998, "mean"),
              list("EN.ATM.CO2E.PC", 1999, "mean"),
-             list("EN.ATM.CO2E.PC", 2000, "mean"),
-             list("EN.ATM.CO2E.PC", 2001, "mean")),
+             list("EN.ATM.CO2E.PC", 2000, "mean")),
            dependent = "EN.ATM.CO2E.PC",
            unit.variable = "countryid",
            unit.names.variable = "country",
@@ -249,7 +248,7 @@ g <- ggplot(donor.weights,
   theme(axis.text.y = element_text(size = 6))
 ggsave(g,
        file = "Figures/Supplementary Information/Donor weights_Spec 2.pdf",
-       height = 4, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Generate results ####
@@ -275,7 +274,7 @@ gap.end.pre <- which(rownames(gaps) == "2001")
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- mean(gaps[gap.start:gap.end.pre, ]^2)
 MSE.spec2 <- pre.MSE
-# HIC and OECD: 0.001899024
+# HIC and OECD: 0.002191321
 
 # Extract pre-treatment outcome values in treated unit and synthetic counterpart
 preT.UK <- Y1plot.UK[gap.start:gap.end.pre]
@@ -327,8 +326,7 @@ g <- ggplot(plot,
   geom_text(x = 1997.5,
             y = 8.5,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold") +
+            col = "black") +
   theme(legend.title = element_blank(),
         legend.position = c(0.132, 0.15)) +
   guides(linetype = guide_legend(override.aes = list(size = 0.5)))
@@ -339,6 +337,9 @@ ggsave(g,
 
 # .. Placebo countries ####
 placebos <- control.units
+
+placebos <- placebos[which(placebos != 143)] # TTO
+# SVD fails
 
 store.gaps <- matrix(NA, length(years), length(placebos))
 colnames(store.gaps) <- whodat(placebos)
@@ -375,8 +376,7 @@ for (i in 1:length(placebos)){
                list("EN.ATM.CO2E.PC", 1997, "mean"),
                list("EN.ATM.CO2E.PC", 1998, "mean"),
                list("EN.ATM.CO2E.PC", 1999, "mean"),
-               list("EN.ATM.CO2E.PC", 2000, "mean"),
-               list("EN.ATM.CO2E.PC", 2001, "mean")),
+               list("EN.ATM.CO2E.PC", 2000, "mean")),
              dependent = "EN.ATM.CO2E.PC",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -385,10 +385,10 @@ for (i in 1:length(placebos)){
              controls.identifier = placebos[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the treated and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -417,8 +417,8 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude AUS, AUT, BEL, CAN, CHE, CHL, DEU, ESP, FIN, FRA, IRL, ISR, JPN, KOR, LUX, NZL, PAN
-# POL, PRT, SAU, SGP, TTO, TUR, URY, USA
+# Exclude AUS, AUT, BEL, CAN, CHE, CHL, CYP, DEU, ESP, FRA, IRL, ISR, JPN
+# KOR, LUX, NZL, PAN, POL, PRT, SAU, SGP, TUR, URY, USA
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
 
@@ -453,15 +453,14 @@ g <- ggplot(plot.gaps5) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.75, yend = -0.75,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.75,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_placebo_MSPE5_Spec 2.pdf",
        height = 4.5, width = 6, units = "in")
@@ -472,11 +471,11 @@ ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 ratio.MSE["GBR"]
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# HIC and OECD: For the UK, the post-treatment gap is 68 times larger than
+# HIC and OECD: For the UK, the post-treatment gap is 45 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 2/31 = 0.06451613
+# 2/29 = 0.06896552
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
@@ -501,7 +500,7 @@ g <- ggplot(MSE,
   theme(axis.text.x = element_text(angle = 90, size = 6, vjust = 0.5))
 ggsave(g,
        file = "Figures/Supplementary Information/MSPE ratio_Two-sided_Spec 2.pdf",
-       height = 5, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Leave-one-out check ####
@@ -548,8 +547,7 @@ for (i in 1:nloops){
                list("EN.ATM.CO2E.PC", 1997, "mean"),
                list("EN.ATM.CO2E.PC", 1998, "mean"),
                list("EN.ATM.CO2E.PC", 1999, "mean"),
-               list("EN.ATM.CO2E.PC", 2000, "mean"),
-               list("EN.ATM.CO2E.PC", 2001, "mean")),
+               list("EN.ATM.CO2E.PC", 2000, "mean")),
              dependent = "EN.ATM.CO2E.PC",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -558,10 +556,10 @@ for (i in 1:nloops){
              controls.identifier = leaveoneout.controls[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the UK and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -602,15 +600,14 @@ g <- ggplot(plot.LOO) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.75, yend = -0.75,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.75,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_leave one out_Spec 2.pdf",
        height = 4.5, width = 6, units = "in")
@@ -653,8 +650,7 @@ dataprep.out <-
              list("EN.ATM.CO2E.PC", 1997, "mean"),
              list("EN.ATM.CO2E.PC", 1998, "mean"),
              list("EN.ATM.CO2E.PC", 1999, "mean"),
-             list("EN.ATM.CO2E.PC", 2000, "mean"),
-             list("EN.ATM.CO2E.PC", 2001, "mean")),
+             list("EN.ATM.CO2E.PC", 2000, "mean")),
            dependent = "EN.ATM.CO2E.PC",
            unit.variable = "countryid",
            unit.names.variable = "country",
@@ -714,7 +710,7 @@ g <- ggplot(donor.weights,
   theme(axis.text.y = element_text(size = 6))
 ggsave(g,
        file = "Figures/Supplementary Information/Donor weights_Spec 3.pdf",
-       height = 4, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Generate results ####
@@ -740,7 +736,7 @@ gap.end.pre <- which(rownames(gaps) == "2001")
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- mean(gaps[gap.start:gap.end.pre, ]^2)
 MSE.spec3 <- pre.MSE
-# OECD: 0.002072709
+# OECD: 0.002122138
 
 # Extract pre-treatment outcome values in treated unit and synthetic counterpart
 preT.UK <- Y1plot.UK[gap.start:gap.end.pre]
@@ -792,8 +788,7 @@ g <- ggplot(plot,
   geom_text(x = 1997.5,
             y = 8.5,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold") +
+            col = "black") +
   theme(legend.title = element_blank(),
         legend.position = c(0.132, 0.15)) +
   guides(linetype = guide_legend(override.aes = list(size = 0.5)))
@@ -826,8 +821,7 @@ for (i in 1:length(placebos)){
                list("EN.ATM.CO2E.PC", 1997, "mean"),
                list("EN.ATM.CO2E.PC", 1998, "mean"),
                list("EN.ATM.CO2E.PC", 1999, "mean"),
-               list("EN.ATM.CO2E.PC", 2000, "mean"),
-               list("EN.ATM.CO2E.PC", 2001, "mean")),
+               list("EN.ATM.CO2E.PC", 2000, "mean")),
              dependent = "EN.ATM.CO2E.PC",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -836,10 +830,10 @@ for (i in 1:length(placebos)){
              controls.identifier = placebos[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the treated and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -868,8 +862,8 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude AUS, AUT, BEL, CAN, CHE, CHL, DEU, ESP, FIN, FRA, HUN, IRL, ISL, ISR, JPN, KOR, LUX
-# MEX, NZL, POL, PRT, TUR, USA
+# Exclude AUS, AUT, BEL, CAN, CHE, CHL, DEU, ESP, FRA, HUN, IRL, ISL, ISR
+# JPN, KOR, LUX, MEX, NZL, POL, PRT, TUR, USA
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
 
@@ -904,15 +898,14 @@ g <- ggplot(plot.gaps5) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.75, yend = -0.75,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.75,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_placebo_MSPE5_Spec 3.pdf",
        height = 4.5, width = 6, units = "in")
@@ -923,11 +916,11 @@ ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 ratio.MSE["GBR"]
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# OECD: For the UK, the post-treatment gap is 106 times larger than
+# OECD: For the UK, the post-treatment gap is 102 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 1/26 = 0.03846154
+# 1/25 = 0.04
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
@@ -952,7 +945,7 @@ g <- ggplot(MSE,
   theme(axis.text.x = element_text(angle = 90, size = 6, vjust = 0.5))
 ggsave(g,
        file = "Figures/Supplementary Information/MSPE ratio_Two-sided_Spec 3.pdf",
-       height = 5, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Leave-one-out check ####
@@ -985,8 +978,7 @@ for (i in 1:nloops){
                list("EN.ATM.CO2E.PC", 1997, "mean"),
                list("EN.ATM.CO2E.PC", 1998, "mean"),
                list("EN.ATM.CO2E.PC", 1999, "mean"),
-               list("EN.ATM.CO2E.PC", 2000, "mean"),
-               list("EN.ATM.CO2E.PC", 2001, "mean")),
+               list("EN.ATM.CO2E.PC", 2000, "mean")),
              dependent = "EN.ATM.CO2E.PC",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -995,10 +987,10 @@ for (i in 1:nloops){
              controls.identifier = leaveoneout.controls[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the UK and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -1039,15 +1031,14 @@ g <- ggplot(plot.LOO) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.75, yend = -0.75,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.75,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_leave one out_Spec 3.pdf",
        height = 4.5, width = 6, units = "in")
@@ -1090,8 +1081,7 @@ dataprep.out <-
              list("rescaled1990", 1997, "mean"),
              list("rescaled1990", 1998, "mean"),
              list("rescaled1990", 1999, "mean"),
-             list("rescaled1990", 2000, "mean"),
-             list("rescaled1990", 2001, "mean")),
+             list("rescaled1990", 2000, "mean")),
            dependent = "rescaled1990",
            unit.variable = "countryid",
            unit.names.variable = "country",
@@ -1151,7 +1141,7 @@ g <- ggplot(donor.weights,
   theme(axis.text.y = element_text(size = 6))
 ggsave(g,
        file = "Figures/Supplementary Information/Donor weights_Spec 4.pdf",
-       height = 4, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Generate results ####
@@ -1177,7 +1167,7 @@ gap.end.pre <- which(rownames(gaps) == "2001")
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- mean(gaps[gap.start:gap.end.pre, ]^2)
 MSE.spec4 <- pre.MSE
-# OECD: 3.028143e-05
+# OECD: 3.301514e-05
 
 # Extract pre-treatment outcome values in treated unit and synthetic counterpart
 preT.UK <- Y1plot.UK[gap.start:gap.end.pre]
@@ -1221,16 +1211,15 @@ g <- ggplot(plot,
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = 8.5, yend = 8.5,
+               y = 0.925, yend = 0.925,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches")),
                show.legend = F) +
   geom_text(x = 1997.5,
-            y = 8.5,
+            y = 0.925,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold") +
+            col = "black") +
   theme(legend.title = element_blank(),
         legend.position = c(0.132, 0.15)) +
   guides(linetype = guide_legend(override.aes = list(size = 0.5)))
@@ -1263,8 +1252,7 @@ for (i in 1:length(placebos)){
                list("rescaled1990", 1997, "mean"),
                list("rescaled1990", 1998, "mean"),
                list("rescaled1990", 1999, "mean"),
-               list("rescaled1990", 2000, "mean"),
-               list("rescaled1990", 2001, "mean")),
+               list("rescaled1990", 2000, "mean")),
              dependent = "rescaled1990",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -1273,10 +1261,10 @@ for (i in 1:length(placebos)){
              controls.identifier = placebos[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the treated and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -1305,8 +1293,8 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude AUT, BEL, CHE, CHL, DEU, ESP, FIN, FRA, HUN, IRL, ISL, ISR, JPN, KOR, LUX, MEX, NZL
-# POL, PRT, TU
+# Exclude AUT, BEL, CHE, CHL, DEU, ESP, FRA, HUN, IRL, ISL, ISR, JPN, KOR
+# LUX, MEX, NZL, POL, PRT, TUR
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
 
@@ -1341,15 +1329,14 @@ g <- ggplot(plot.gaps5) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.15, yend = -0.15,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.15,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_placebo_MSPE5_Spec 4.pdf",
        height = 4.5, width = 6, units = "in")
@@ -1360,11 +1347,11 @@ ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 ratio.MSE["GBR"]
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# OECD: For the UK, the post-treatment gap is 96 times larger than
+# OECD: For the UK, the post-treatment gap is 86 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 3/26 = 0.1153846
+# 1/25 = 0.04
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
@@ -1389,7 +1376,7 @@ g <- ggplot(MSE,
   theme(axis.text.x = element_text(angle = 90, size = 6, vjust = 0.5))
 ggsave(g,
        file = "Figures/Supplementary Information/MSPE ratio_Two-sided_Spec 4.pdf",
-       height = 5, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Leave-one-out check ####
@@ -1422,8 +1409,7 @@ for (i in 1:nloops){
                list("rescaled1990", 1997, "mean"),
                list("rescaled1990", 1998, "mean"),
                list("rescaled1990", 1999, "mean"),
-               list("rescaled1990", 2000, "mean"),
-               list("rescaled1990", 2001, "mean")),
+               list("rescaled1990", 2000, "mean")),
              dependent = "rescaled1990",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -1432,10 +1418,10 @@ for (i in 1:nloops){
              controls.identifier = leaveoneout.controls[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the UK and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -1476,15 +1462,14 @@ g <- ggplot(plot.LOO) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.15, yend = -0.15,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.15,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_leave one out_Spec 4.pdf",
        height = 4.5, width = 6, units = "in")
@@ -1526,9 +1511,8 @@ dataprep.out <-
              list("rescaled2000", 1996, "mean"),
              list("rescaled2000", 1997, "mean"),
              list("rescaled2000", 1998, "mean"),
-             list("rescaled2000", 1999, "mean"),
-             #list("rescaled2000", 2000, "mean"),
-             list("rescaled2000", 2001, "mean")),
+             list("rescaled2000", 1999, "mean")),
+             #list("rescaled2000", 2000, "mean")),
            dependent = "rescaled2000",
            unit.variable = "countryid",
            unit.names.variable = "country",
@@ -1588,7 +1572,7 @@ g <- ggplot(donor.weights,
   theme(axis.text.y = element_text(size = 6))
 ggsave(g,
        file = "Figures/Supplementary Information/Donor weights_Spec 5.pdf",
-       height = 4, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Generate results ####
@@ -1614,7 +1598,7 @@ gap.end.pre <- which(rownames(gaps) == "2001")
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- mean(gaps[gap.start:gap.end.pre, ]^2)
 MSE.spec5 <- pre.MSE
-# OECD: 3.682202e-05
+# OECD: 3.728242e-05
 
 # Extract pre-treatment outcome values in treated unit and synthetic counterpart
 preT.UK <- Y1plot.UK[gap.start:gap.end.pre]
@@ -1658,16 +1642,15 @@ g <- ggplot(plot,
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = 8.5, yend = 8.5,
+               y = 0.925, yend = 0.925,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches")),
                show.legend = F) +
   geom_text(x = 1997.5,
-            y = 8.5,
+            y = 0.925,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold") +
+            col = "black") +
   theme(legend.title = element_blank(),
         legend.position = c(0.132, 0.15)) +
   guides(linetype = guide_legend(override.aes = list(size = 0.5)))
@@ -1699,9 +1682,8 @@ for (i in 1:length(placebos)){
                list("rescaled2000", 1996, "mean"),
                list("rescaled2000", 1997, "mean"),
                list("rescaled2000", 1998, "mean"),
-               list("rescaled2000", 1999, "mean"),
-               #list("rescaled2000", 2000, "mean"),
-               list("rescaled2000", 2001, "mean")),
+               list("rescaled2000", 1999, "mean")),
+               #list("rescaled2000", 2000, "mean")),
              dependent = "rescaled2000",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -1710,10 +1692,10 @@ for (i in 1:length(placebos)){
              controls.identifier = placebos[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the treated and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -1742,7 +1724,8 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude BEL, CHE, CHL, DEU, ESP, FIN, FRA, HUN, IRL, ISL, ISR, KOR, LUX, POL, PRT, TUR
+# Exclude AUT, BEL, CHE, CHL, DEU, ESP, FRA, HUN, IRL, ISL, ISR, KOR, LUX
+# NZL, POL, PRT, TUR
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
 
@@ -1777,15 +1760,14 @@ g <- ggplot(plot.gaps5) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.15, yend = -0.15,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.15,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_placebo_MSPE5_Spec 5.pdf",
        height = 4.5, width = 6, units = "in")
@@ -1796,11 +1778,11 @@ ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 ratio.MSE["GBR"]
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# OECD: For the UK, the post-treatment gap is 102 times larger than
+# OECD: For the UK, the post-treatment gap is 112 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 3/26 = 0.1153846
+# 1/25 = 0.04
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
@@ -1825,7 +1807,7 @@ g <- ggplot(MSE,
   theme(axis.text.x = element_text(angle = 90, size = 6, vjust = 0.5))
 ggsave(g,
        file = "Figures/Supplementary Information/MSPE ratio_Two-sided_Spec 5.pdf",
-       height = 5, width = 6, units = "in")
+       height = 4.5, width = 6, units = "in")
 
 
 # .. Leave-one-out check ####
@@ -1857,9 +1839,8 @@ for (i in 1:nloops){
                list("rescaled2000", 1996, "mean"),
                list("rescaled2000", 1997, "mean"),
                list("rescaled2000", 1998, "mean"),
-               list("rescaled2000", 1999, "mean"),
-               #list("rescaled2000", 2000, "mean"),
-               list("rescaled2000", 2001, "mean")),
+               list("rescaled2000", 1999, "mean")),
+               #list("rescaled2000", 2000, "mean")),
              dependent = "rescaled2000",
              unit.variable = "countryid",
              unit.names.variable = "country",
@@ -1868,10 +1849,10 @@ for (i in 1:nloops){
              controls.identifier = leaveoneout.controls[-i],
              time.optimize.ssr = choose.time.predictors,
              time.plot = 1990:2005)
-  
+
   # Running Synth
   synth.out <- synth(data.prep.obj = dataprep.out)
-  
+
   # Calculating annual gaps between the UK and its synthetic counterpart
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
@@ -1912,15 +1893,14 @@ g <- ggplot(plot.LOO) +
   geom_vline(xintercept = 2001,
              lty = 2) +
   geom_segment(x = 1999, xend = 2001,
-               y = -0.9, yend = -0.9,
+               y = -0.15, yend = -0.15,
                col = "black",
                arrow = arrow(ends = "last", type = "closed",
                              length = unit(0.1, "inches"))) +
   geom_text(x = 1997.5,
-            y = -0.9,
+            y = -0.15,
             label = "CCP enacted",
-            col = "black",
-            fontface = "bold")
+            col = "black")
 ggsave(g,
        file = "Figures/Supplementary Information/Gaps in emissions_leave one out_Spec 5.pdf",
        height = 4.5, width = 6, units = "in")
