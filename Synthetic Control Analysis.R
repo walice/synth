@@ -754,7 +754,7 @@ results %>%
 placebos <- control.units
 
 placebos <- placebos[which(placebos != 27 & placebos != 79)] # CHL
-# HIC and OECD: SVD fails
+# SVD fails
 
 store.gaps <- matrix(NA, length(years), length(placebos))
 colnames(store.gaps) <- whodat(placebos)
