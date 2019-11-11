@@ -8,13 +8,15 @@
 # Functions
 # Data
 # .. Import emissions for Germany from CDIAC
+# .. Import population for Kuwait from UN World Population Prospects
+# .. Import emissions for Liechtenstein from UNFCCC GHG Inventory
 # .. Import indicators from WDI
 # .. Create outcome variables
 # .. Drop missing data and specific donors
 # .. Figures of summary statistics
 # .. Table of sample for SI
 # Specification in Paper
-# .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high income
+# .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high & upper middle income
 # Synth
 # .. Running Synth 
 # .. Pre-treatment predictor values 
@@ -68,7 +70,7 @@
 ## ## ## ## ## ## ## ## ## ##
 
 setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-#setwd("C:/boxsync/alepissier/LepissierMildenberger/Synth/") # Alice work
+#setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
 library(ggrepel)
@@ -81,6 +83,7 @@ library(scales)
 library(stargazer)
 library(Synth)
 library(tidyverse)
+#devtools::install_github('chadhazlett/KBAL')
 #devtools::install_github('xuyiqing/tjbal')
 library(tjbal)
 library(WDI)
@@ -144,9 +147,17 @@ codes <- read.xlsx2("Data/Codes_Masterlist.xlsx", sheetName = "Codes") %>%
 policies <- read.xlsx2("Data/Countries and climate policies.xlsx", sheetName = "Countries") %>%
   mutate_all(as.character)
 
+WB <- read.xlsx2("Data/OGHIST.xls", sheetName = "Country Analytical History",
+                 startRow = 5) %>%
+  mutate_all(as.character) %>%
+  slice(-1:-6) %>%
+  select(ISO = X.,
+         Country = Bank.s.fiscal.year.,
+         FY01)
+
 
 # .. Import emissions for Germany from CDIAC ####
-# Data for Germany prior to 1991 is missing from WDI.
+# Data on emissions for Germany prior to 1991 is missing from WDI.
 # WDI uses CDIAC as the raw data source, so go to CDIAC to import emissions prior to 1991.
 
 CDIAC <- read.csv("Data/nation.1751_2014.csv") %>%
@@ -154,10 +165,38 @@ CDIAC <- read.csv("Data/nation.1751_2014.csv") %>%
   filter(Nation == "FORMER GERMAN DEMOCRATIC REPUBLIC" | Nation == "FEDERAL REPUBLIC OF GERMANY")
 
 CDIAC <- spread(CDIAC, Nation, Emissions) %>%
-  mutate(EN.ATM.CO2E.KT = (`FEDERAL REPUBLIC OF GERMANY` + `FORMER GERMAN DEMOCRATIC REPUBLIC`) * 3.667,
+  mutate(EN.ATM.CO2E.KT = (`FEDERAL REPUBLIC OF GERMANY` + `FORMER GERMAN DEMOCRATIC REPUBLIC`) * 44/12,
          country = "Germany", iso2c = "DE") %>%
   select(iso2c, country, year = Year, EN.ATM.CO2E.KT) %>%
   filter(year >= 1960)
+
+
+# .. Import population for Kuwait from UN World Population Prospects ####
+# Data on population for Kuwait from 1992-1994 is missing from WDI.
+# WDI uses UN World Population Prospects as the raw data source, so go to UN WPP to import population from 1992-1994.
+
+WPP <- read.xlsx2("Data/WPP2019_POP_F01_1_TOTAL_POPULATION_BOTH_SEXES.xlsx", 
+                  sheetName = "ESTIMATES",
+                  startRow = 17) %>%
+  mutate_all(as.character)
+
+WPP <- WPP %>%
+  select(country = Region..subregion..country.or.area..,
+         X1992:X1994) %>%
+  filter(country == "Kuwait") %>%
+  gather(year, SP.POP.TOTL, X1992:X1994) %>%
+  mutate(year = as.integer(substr(year, 2, 5)),
+         SP.POP.TOTL = as.numeric(SP.POP.TOTL) * 1000,
+         iso2c = "KW")
+
+
+# .. Import emissions for Liechtenstein from UNFCCC GHG Inventory ####
+# Data on emissions for Liechtenstein prior to 2007 is missing from WDI and CDIAC.
+# Go to UNFCCC GHG Inventory for raw data on emissions reported by Liechtenstein:
+# available on p. 18 of https://www.llv.li/files/au/lie-2017-apr-nir.pdf,
+# in the second row of the table (CO2 emissions excl. net CO2 from LULUCF)
+
+LIE <- read.csv("Data/LIE.1990_2015.csv")
 
 
 # .. Import indicators from WDI ####
@@ -196,7 +235,18 @@ load("Data/data.Rdata")
 
 data[which(data$country == "Germany" & data$year <= 1990), "EN.ATM.CO2E.KT"] <- CDIAC$EN.ATM.CO2E.KT
 data <- data %>%
-  mutate(EN.ATM.CO2E.PC = ifelse(country == "Germany" & year <= 1990, EN.ATM.CO2E.KT * 1000 / SP.POP.TOTL, EN.ATM.CO2E.PC))
+  mutate(EN.ATM.CO2E.PC = ifelse(country == "Germany" & year <= 1990, 
+                                 EN.ATM.CO2E.KT * 1000 / SP.POP.TOTL, EN.ATM.CO2E.PC))
+
+data[which(data$country == "Kuwait" & data$year >= 1992 & data$year <= 1994), "SP.POP.TOTL"] <- WPP$SP.POP.TOTL
+data <- data %>%
+  mutate(EN.ATM.CO2E.PC = ifelse(country == "Kuwait" & data$year >= 1992 & data$year <= 1994, 
+                                 EN.ATM.CO2E.KT * 1000 / SP.POP.TOTL, EN.ATM.CO2E.PC))
+
+data[which(data$country == "Liechtenstein" & data$year >= 1990 & data$year <= 2015), "EN.ATM.CO2E.KT"] <- LIE$CO2..kt.
+data <- data %>%
+  mutate(EN.ATM.CO2E.PC = ifelse(country == "Liechtenstein" & year >= 1990 & year <= 2015, 
+                                 EN.ATM.CO2E.KT * 1000 / SP.POP.TOTL, EN.ATM.CO2E.PC))
 
 data <- left_join(data, codes %>% 
                     select(ISO3166.2, ISO3166.3, Country) %>% 
@@ -248,7 +298,7 @@ whoder()
 
 range(data$year)
 data <- data %>%
-  filter(year >= 1980)
+  filter(year >= 1980 & year <= 2005)
 
 nmiss <- ddply(data, "countrycode", summarize,
                co2.missing = sum(is.na(EN.ATM.CO2E.KT)),
@@ -294,9 +344,9 @@ missing <- missing %>%
   select(countrycode) %>%
   pull
 whodis(missing)
-# 33 countries
+# 26 countries
 # If we calculate missing countries solely on the basis of co2pc.missing > 10,
-# then the same 33 countries are missing
+# then the same 26 countries are missing
 
 data <- subset(data, !(countrycode %in% missing))
 whoder()
@@ -309,13 +359,18 @@ missing <- data %>%
 data <- subset(data, !(countrycode %in% missing))
 whoder()
 
-UK <- c("GIB", "IMN", "VGB")
-data <- subset(data, !(countrycode %in% UK))
-whoder()
+# UK <- c("GIB", "IMN", "VGB")
+# data <- subset(data, !(countrycode %in% UK))
+# whoder()
 
 HIC <- codes %>%
   filter(WB_Income_Group_Code == "HIC") %>%
   distinct(ISO3166.3) %>%
+  pull
+
+HIC01 <- WB %>%
+  filter(FY01 == "H") %>%
+  distinct(ISO) %>%
   pull
 
 UMC <- codes %>%
@@ -323,9 +378,19 @@ UMC <- codes %>%
   distinct(ISO3166.3) %>%
   pull
 
+UMC01 <- WB %>%
+  filter(FY01 == "UM") %>%
+  distinct(ISO) %>%
+  pull
+
 OECD <- codes %>%
   filter(OECD == 1) %>%
   distinct(ISO3166.3) %>%
+  pull
+
+OECD01 <- policies %>%
+  filter(OECD..2001. == "Yes") %>%
+  distinct(ISO.code) %>%
   pull
 
 Commonwealth <- codes %>%
@@ -335,22 +400,17 @@ Commonwealth <- codes %>%
 
 data_all <- data
 
-data <- subset(data_all, countrycode %in% OECD)
+data <- subset(data_all, countrycode %in% OECD01)
 whoder()
 save(data, file = "Data/data_OECD.Rdata")
 
-data <- subset(data_all, countrycode %in% OECD | countrycode %in% HIC)
+data <- subset(data_all, countrycode %in% OECD01 | countrycode %in% HIC01)
 whoder()
 save(data, file = "Data/data_OECD_HIC.Rdata")
 
-# data <- subset(data_all, countrycode %in% OECD | countrycode %in% Commonwealth)
-
-# tiny.countries <- data_all %>% 
-#   filter(year == 2015) %>% 
-#   filter(SP.POP.TOTL <= 500000) %>% 
-#   distinct(countrycode) %>%
-#   pull
-# data <- subset(data_all, !(countrycode %in% tiny.countries))
+data <- subset(data_all, countrycode %in% OECD01 | countrycode %in% HIC01 | countrycode %in% UMC01)
+whoder()
+save(data, file = "Data/data_OECD_HIC_UMC.Rdata")
 
 
 # .. Figures of summary statistics ####
@@ -380,14 +440,14 @@ ggplot(data %>%
        y = expression(paste("CO"[2], " emissions against 1990 baseline"))) +
   theme(legend.position = "none")
 
-# Emissions in effective sample
-effective.sample <- c("BEL", "CHE", "POL", "BHS", "NCL", "FRO", "LUX", "URY", "FRA", "AUT", "PLW", "SAU")
-g <- ggplot(data %>% 
+# Emissions in effective sample when donor pool is OECD & high & upper middle income
+effective.sample <- c("BEL", "POL", "BHS", "LBY", "URY", "FRO", "LUX", "NCL", "TTO", "SAU")
+g <- ggplot(data_all %>% 
               filter(countrycode %in% effective.sample) %>%
               filter(year >= 1990 & year <= 2010), 
             aes(x = year, y = EN.ATM.CO2E.PC, col = fct_reorder2(country, year, EN.ATM.CO2E.PC))) + 
   geom_line() +
-  geom_line(data = data %>%
+  geom_line(data = data_all %>%
               filter(countrycode == "GBR") %>%
               filter(year >= 1990 & year <= 2010),
             aes(x = year, y = EN.ATM.CO2E.PC),
@@ -397,12 +457,12 @@ g <- ggplot(data %>%
   labs(title = "Emissions trends in the United Kingdom and effective sample",
        x = "Year",
        y = expression(paste("CO"[2], " emissions per capita"))) +
-  geom_label_repel(data = data %>% 
+  geom_label_repel(data = data_all %>% 
                      filter(countrycode %in% effective.sample) %>%
-                     filter(year == 2010),
+                     filter(year == 2005),
                    aes(label = country),
                    size = 3) +
-  geom_label_repel(data = data %>%
+  geom_label_repel(data = data_all %>%
                      filter(countrycode == "GBR") %>%
                      filter(year == 1990),
                    label = "UK", 
@@ -410,18 +470,57 @@ g <- ggplot(data %>%
                    size = 3) +
   theme(legend.position = "none")
 ggsave(g,
-       file = "Figures/CO2 emissions in effective sample.pdf",
+       file = "Figures/CO2 emissions in effective sample_OECD_HIC_UMC.pdf",
+       height = 4.5, width = 6, units = "in")
+
+# Emissions in effective sample when donor pool is OECD & high income
+effective.sample <- c("BEL", "CHE", "POL", "NCL", "FRA", "BHS", "LUX", "FRO", "PYF", "ESP")
+g <- ggplot(data_all %>% 
+              filter(countrycode %in% effective.sample) %>%
+              filter(year >= 1990 & year <= 2010), 
+            aes(x = year, y = EN.ATM.CO2E.PC, col = fct_reorder2(country, year, EN.ATM.CO2E.PC))) + 
+  geom_line() +
+  geom_line(data = data_all %>%
+              filter(countrycode == "GBR") %>%
+              filter(year >= 1990 & year <= 2010),
+            aes(x = year, y = EN.ATM.CO2E.PC),
+            col = "black") +
+  scale_color_paletteer_d(package = "rcartocolor",
+                          palette = "Bold") +
+  labs(title = "Emissions trends in the United Kingdom and effective sample",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_label_repel(data = data_all %>% 
+                     filter(countrycode %in% effective.sample) %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   size = 3) +
+  geom_label_repel(data = data_all %>%
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 1990),
+                   label = "UK", 
+                   col = "black",
+                   size = 3) +
+  theme(legend.position = "none")
+ggsave(g,
+       file = "Figures/CO2 emissions in effective sample_OECD_HIC.pdf",
        height = 4.5, width = 6, units = "in")
 
 
 # .. Table of sample for SI ####
-kable(policies,
+donorpool <- data %>% distinct(countrycode) %>% pull
+kable(policies %>% 
+        filter(ISO.code %in% donorpool) %>%
+        select(Country, ISO.code, World.Bank.classification..2001.,
+                          OECD..2001., Annex.I.party, Carbon.pricing.policy.first.passed.in,
+                          Treated.in.2001),
       format = "latex",
-      col.names = c("ISO code", "Country", "World Bank classification", "OECD member",
-                    "Annex I party", "Carbon pricing policy first passed in", "Treated in 2001"))
+      col.names = c("Country", "ISO code", "World Bank classification (2001)", 
+                    "OECD (2001)", "Annex I party", 
+                    "Carbon pricing policy first passed in", "Treated in 2001"))
 
-rm(codes, countries, policies, treated, indicators, missing, nmiss, 
-   scandis, UK, HIC, UMC, OECD, Commonwealth, CDIAC, 
+rm(codes, countries, policies, WB, treated, indicators, missing, nmiss, 
+   HIC, HIC01, UMC, UMC01, OECD, OECD01, Commonwealth, CDIAC, WPP, LIE, donorpool,
    data_all, effective.sample, g)
 
 
@@ -430,10 +529,10 @@ rm(codes, countries, policies, treated, indicators, missing, nmiss,
 # SPECIFICATION IN PAPER ####
 ## ## ## ## ## ## ## ## ## ##
 
-load("Data/data_OECD_HIC.RData")
+load("Data/data_OECD_HIC_UMC.Rdata")
 whoder()
 
-# .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high income ####
+# .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high & upper middle income ####
 treated.unit <- data %>%
   filter(countrycode == "GBR") %>%
   distinct(countryid) %>%
@@ -584,7 +683,7 @@ gap.end.pre <- which(rownames(gaps) == "2001")
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- mean(gaps[gap.start:gap.end.pre, ]^2)
 pre.MSE
-# 0.0006263411
+# 2.576965e-05
 
 # Extract pre-treatment outcome values in treated unit and synthetic counterpart
 preT.UK <- Y1plot.UK[gap.start:gap.end.pre]
@@ -636,14 +735,14 @@ t.test(synth.tab(synth.res = synth.out,
        synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred[, "Synthetic"])$p.value
-# 0.9583234
+# 0.9986733
 t.test(synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred[, "Treated"],
        synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred[, "Sample Mean"])$p.value
-# 9.649501e-07
+# 0.1850303
 
 
 # .. Emissions trajectories figure ####
@@ -715,23 +814,23 @@ results <- left_join(data.frame(synth) %>%
 results %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.Mt), sum)
-# -91.43959
+# -96.80159
 
 results %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.Mt), mean)
-# -22.8599
+# -24.2004
 
 results %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.PC), mean)
-# -0.3812496
+# -0.403298
 
 results %>% filter(year == 2005) %>% select(gaps.pct)
-# -0.052416
+# -0.06102103
 
 results %>% filter(year == 2002) %>% select(gaps.Mt)
-# -12.43223
+# -11.39701
 
 results %>% 
   filter(year > 2001) %>% 
@@ -753,7 +852,9 @@ results %>%
 
 placebos <- control.units
 
-placebos <- placebos[which(placebos != 27 & placebos != 79)] # CHL
+placebos <- placebos[which(placebos != 80)] # KWT
+placebos <- placebos[which(placebos != 48)] # FRO
+placebos <- placebos[which(placebos != 115)] # PLW
 # SVD fails
 
 store.gaps <- matrix(NA, length(years), length(placebos))
@@ -874,13 +975,16 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude ABW, ARE, ARG, AUS, AUT, BEL, BHR, BHS, BMU, BRB, BRN, CAN, CHE, CYM, CYP, DEU, ESP
-# FRA, FRO, HKG, HUN, IRL, ISL, ISR, JPN, LUX, MAC, MLT, NCL, NZL, OMN, PAN, PLW, POL
-# PRT, PYF, QAT, SAU, SGP, SYC, TTO, TUR, URY, USA
+# Exclude ABW, AND, ARE, ARG, ATG, AUS, AUT, BEL, BHR, BHS, BMU, BRA, BRB, BRN, BWA
+# CAN, CHE, CHL, CYM, CYP, DEU, DMA, ESP, FRA, GAB, GRC, GRD, GRL, HKG, HUN
+# IRL, ISL, ISR, ITA, JPN, KOR, LBN, LBY, LCA, LIE, LUX, MAC, MLT, MUS, MYS
+# NCL, NZL, OMN, PAN, POL, PRT, PYF, QAT, SAU, SGP, SYC, TTO, TUR, URY, USA
+# VEN, ZAF
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
 MSPE10 <- colnames(placebo.results[, pre.MSE < 10*UK.pre.MSE])
 MSPE20 <- colnames(placebo.results[, pre.MSE < 20*UK.pre.MSE])
+MSPE50 <- colnames(placebo.results[, pre.MSE < 50*UK.pre.MSE])
 
 plot.gaps <- placebo.results %>%
   mutate(Year = years) %>%
@@ -891,6 +995,8 @@ plot.gaps10 <- plot.gaps %>%
   filter(Country %in% MSPE10)
 plot.gaps20 <- plot.gaps %>%
   filter(Country %in% MSPE20)
+plot.gaps50 <- plot.gaps %>%
+  filter(Country %in% MSPE50)
 
 # Plot all
 g <- ggplot(plot.gaps) +
@@ -1040,9 +1146,46 @@ ggsave(g,
        file = "Figures/Gaps in emissions_placebo_MSPE20.pdf",
        height = 4.5, width = 6, units = "in")
 
+# Plot excluding placebos with MSPE > 50
+g <- ggplot(plot.gaps50) +
+  geom_line(data = plot.gaps50 %>%
+              filter(Country != "GBR"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", plot.gaps50 %>% 
+                                    filter(Country != "GBR") %>% 
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.gaps50 %>%
+              filter(Country == "GBR"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Re-assigning treatment to placebo countries",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.75, yend = -0.75,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.75,
+            label = "CCP enacted",
+            col = "black")
+ggsave(g,
+       file = "Figures/Gaps in emissions_placebo_MSPE50.pdf",
+       height = 4.5, width = 6, units = "in")
+
 # How many control states remain?
 plot.gaps5 %>% distinct(Country)
-# 5 control states
+# 2 control states
 
 
 # .. Ratio of post-treatment MSPE to pre-treatment MSPE ####
@@ -1050,11 +1193,11 @@ ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 ratio.MSE["GBR"]
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# For the UK, the post-treatment gap is 253 times larger than
+# For the UK, the post-treatment gap is 7473 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 3/50 = 0.06
+# 2/65 = 0.03076923
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
@@ -1063,6 +1206,11 @@ MSE <- data.frame(country = names(pre.MSE),
                   ratio = post.MSE/pre.MSE,
                   TE2005 = placebo.results[gap.end,]) %>%
   mutate(col = ifelse(country == "GBR", "darkorchid", "grey"))
+
+MSE %>% filter(TE2005 <0) %>% arrange(ratio)
+# For a one-sided test, the ratio in the UK is the largest.
+# The changes of obtaining a ratio as high as this one would be
+# 1/40 = 0.025
 
 # Plot log of ratio, two-sided test
 g <- ggplot(MSE,
@@ -1125,16 +1273,16 @@ g <- ggplot(MSE,
        subtitle = "Two-sided test",
        x = "Ratio of post-treatment MSPE to pre-treatment MSPE",
        y = "Density") +
-  geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull + 100,
-               xend = 2500,
-               y = 0.0005,
-               yend = 0.0025,
+  geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull,
+               xend = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 500,
+               y = 0.00085,
+               yend = 0.003,
                col = "darkorchid",
                arrow = arrow(ends = "first", type = "closed",
                              length = unit(0.1, "inches")),
                arrow.fill = "darkorchid") +
-  geom_text(x = 2500,
-            y = 0.0028,
+  geom_text(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 500,
+            y = 0.0035,
             label = "United Kingdom",
             col = "darkorchid",
             hjust = 0.4)
@@ -1153,15 +1301,15 @@ g <- ggplot(MSE %>%
        subtitle = "One-sided test",
        x = "Ratio of post-treatment MSPE to pre-treatment MSPE",
        y = "Density") +
-  geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 30,
-               xend = 850,
-               y = 0.001,
+  geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull,
+               xend = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 500,
+               y = 0.00085,
                yend = 0.003,
                col = "darkorchid",
                arrow = arrow(ends = "first", type = "closed",
                              length = unit(0.1, "inches")),
                arrow.fill = "darkorchid") +
-  geom_text(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 90,
+  geom_text(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull,
             y = 0.0035,
             label = "United Kingdom",
             col = "darkorchid",
@@ -1620,7 +1768,7 @@ gaps.t <- left_join(data.frame(gaps) %>%
 gaps.t %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.Mt), sum)
-# 1.614659
+# -8.602686
 
 
 # .. Run on immobile emissions ####
@@ -1758,7 +1906,7 @@ gaps.t <- left_join(data.frame(gaps) %>%
 gaps.t %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.Mt), sum)
-# -51.40848
+# -118.8592
 
 
 
@@ -1936,9 +2084,11 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude ABW, ARE, AUS, AUT, BEL, BHR, BHS, BMU, BRB, BRN, CAN, CHE, CHL, CYM, DEU, ESP, FRA
-# FRO, HKG, IRL, ISL, ISR, ITA, KOR, LUX, MLT, NCL, OMN, PLW, POL, PRT, QAT, SAU, SGP
-# SYC, TTO
+# Exclude ABW, AND, ARE, ARG, ATG, AUS, AUT, BEL, BHR, BHS, BMU, BRA, BRB, BRN, BWA
+# CAN, CHE, CHL, CYM, CYP, DEU, DMA, ESP, FRA, FRO, GAB, GRD, GRL, HKG, HUN
+# IRL, ISL, ISR, ITA, JPN, KNA, KOR, KWT, LBN, LBY, LCA, LIE, LUX, MAC, MEX
+# MLT, MUS, MYS, NCL, NZL, OMN, PAN, PLW, POL, PRT, PYF, QAT, SAU, SGP, SYC
+# TTO, TUR, URY, USA, VEN, ZAF
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
 MSPE10 <- colnames(placebo.results[, pre.MSE < 10*UK.pre.MSE])
@@ -2104,18 +2254,18 @@ ggsave(g,
 
 # How many control states remain?
 plot.gaps5 %>% distinct(Country)
-# 15 control states
+# 1 control state
 
 
 # .. Ratio of post-treatment MSPE to pre-treatment MSPE ####
 ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# For the UK, the post-treatment gap is 78 times larger than
+# For the UK, the post-treatment gap is 90 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 9/52 = 0.1730769
+# 2/68 = 0.02941176
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
@@ -2255,4 +2405,3 @@ g <- ggplot(plot.LOO) +
 ggsave(g,
        file = "Figures/Trajectory Balancing/Gaps in emissions_leave one out_Mbal.pdf",
        height = 4.5, width = 6, units = "in")
-
