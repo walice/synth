@@ -69,8 +69,8 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-#setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
+#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
 library(ggrepel)
@@ -285,6 +285,15 @@ data <- left_join(data, data %>%
 attr(data$baseline2000, "label") <- "CO2 emissions (kt) in 2000"
 attr(data$rescaled2000, "label") <- NULL
 
+# Emissions per capita demeaned from pre-treatment
+data <- left_join(data, data %>%
+                    filter(year >= 1990 & year < 2001) %>%
+                    group_by(countryid) %>%
+                    summarize(mean.preT = mean(EN.ATM.CO2E.PC, na.rm = T)) %>%
+                    ungroup(),
+                  by = "countryid") %>%
+  mutate(EN.ATM.CO2E.PC.demean = EN.ATM.CO2E.PC - mean.preT)
+
 
 # .. Drop missing data and specific donors ####
 treated <- policies %>%
@@ -320,7 +329,7 @@ nmiss <- ddply(data, "countrycode", summarize,
                importsgdp.missing = sum(is.na(NE.IMP.GNFS.ZS)))
 summary(nmiss)
 
-missing <- subset(nmiss, 
+missing <- subset(nmiss,
                   (co2.missing > 10) | (
                     co2pc.missing > 10
                     & gdppc.missing > 10
@@ -340,7 +349,7 @@ missing <- subset(nmiss,
                     & importsgdp.missing > 10)
 )
 
-missing <- missing %>% 
+missing <- missing %>%
   select(countrycode) %>%
   pull
 whodis(missing)
@@ -351,7 +360,7 @@ whodis(missing)
 data <- subset(data, !(countrycode %in% missing))
 whoder()
 
-missing <- data %>% 
+missing <- data %>%
   filter(year >= 1990 & year < 2005) %>%
   filter(is.na(EN.ATM.CO2E.KT) | is.na(EN.ATM.CO2E.PC)) %>%
   distinct(countrycode) %>%
@@ -359,9 +368,12 @@ missing <- data %>%
 data <- subset(data, !(countrycode %in% missing))
 whoder()
 
-# UK <- c("GIB", "IMN", "VGB")
-# data <- subset(data, !(countrycode %in% UK))
-# whoder()
+tinycountries <- data %>%
+  filter(year == 2001) %>%
+  filter(SP.POP.TOTL < 2.5*10^5) %>%
+  distinct(countrycode) %>%
+  pull
+data <- subset(data, !(countrycode %in% tinycountries))
 
 HIC <- codes %>%
   filter(WB_Income_Group_Code == "HIC") %>%
@@ -519,8 +531,8 @@ kable(policies %>%
                     "OECD (2001)", "Annex I party", 
                     "Carbon pricing policy first passed in", "Treated in 2001"))
 
-rm(codes, countries, policies, WB, treated, indicators, missing, nmiss, 
-   HIC, HIC01, UMC, UMC01, OECD, OECD01, Commonwealth, CDIAC, WPP, LIE, donorpool,
+rm(codes, countries, policies, WB, treated, indicators, missing, nmiss,
+   HIC, HIC01, UMC, UMC01, OECD, OECD01, Commonwealth, CDIAC, WPP, LIE, donorpool, tinycountries,
    data_all, effective.sample, g)
 
 
@@ -638,10 +650,10 @@ g <- ggplot(donor.weights,
   geom_text(aes(label = ifelse(Donor.weight < 1e-04, 
                                round(Donor.weight, 5), 
                                round(Donor.weight, 4))),
-            size = 2, nudge_x = 0, nudge_y = 0.011) +
+            size = 1.8, nudge_x = 0, nudge_y = 0.011) +
   labs(title = "Donor weights",
        x = "", y = "") +
-  theme(axis.text.y = element_text(size = 6))
+  theme(axis.text.y = element_text(size = 5))
 ggsave(g, file = "Figures/Donor weights.pdf",
        height = 4.5, width = 6, units = "in")
 
@@ -683,7 +695,7 @@ gap.end.pre <- which(rownames(gaps) == "2001")
 # Mean Square Prediction Error Pre-Treatment
 pre.MSE <- mean(gaps[gap.start:gap.end.pre, ]^2)
 pre.MSE
-# 2.576965e-05
+# 0.0001239377
 
 # Extract pre-treatment outcome values in treated unit and synthetic counterpart
 preT.UK <- Y1plot.UK[gap.start:gap.end.pre]
@@ -709,6 +721,33 @@ kable(cbind(p.val.t, p.val.KS, t(qqstats)), format = "latex")
 bal <- synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred
+
+(mean.UK <- data.frame(bal) %>%
+    mutate(Year = seq(1990, 2000)) %>%
+    filter(Year <= 1996) %>%
+    summarize(mean.UK = mean(Treated)))
+# 9.557256
+(mean.sample <- data.frame(bal) %>% 
+    mutate(Year = seq(1990, 2000)) %>%
+    filter(Year <= 1996) %>%
+    summarize(mean.sample = mean(Sample.Mean)))
+# 9.566122
+(mean.sample - mean.UK)/mean.UK
+# 0.0009276977
+
+(mean.UK <- data.frame(bal) %>%
+    mutate(Year = seq(1990, 2000)) %>%
+    filter(Year > 1996) %>%
+    summarize(mean.UK = mean(Treated)))
+# 9.096078
+(mean.sample <- data.frame(bal) %>% 
+    mutate(Year = seq(1990, 2000)) %>%
+    filter(Year > 1996) %>%
+    summarize(mean.sample = mean(Sample.Mean)))
+# 10.06729
+(mean.sample - mean.UK)/mean.UK
+# 0.1067721
+
 bal <- data.frame(bal) %>%
   mutate(Year = seq(1990, 2000),
          Weighted = Synthetic - Treated,
@@ -735,14 +774,14 @@ t.test(synth.tab(synth.res = synth.out,
        synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred[, "Synthetic"])$p.value
-# 0.9986733
+# 0.9996069
 t.test(synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred[, "Treated"],
        synth.tab(synth.res = synth.out,
                  dataprep.res = dataprep.out,
                  round.digit = 10)$tab.pred[, "Sample Mean"])$p.value
-# 0.1850303
+# 0.03201298
 
 
 # .. Emissions trajectories figure ####
@@ -814,23 +853,23 @@ results <- left_join(data.frame(synth) %>%
 results %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.Mt), sum)
-# -96.80159
+# -148.331
 
 results %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.Mt), mean)
-# -24.2004
+# -37.08274
 
 results %>%
   filter(year > 2001) %>%
   summarize_at(vars(gaps.PC), mean)
-# -0.403298
+# -0.6178388
 
 results %>% filter(year == 2005) %>% select(gaps.pct)
-# -0.06102103
+# -0.09751784
 
 results %>% filter(year == 2002) %>% select(gaps.Mt)
-# -11.39701
+# -17.08163
 
 results %>% 
   filter(year > 2001) %>% 
@@ -852,9 +891,7 @@ results %>%
 
 placebos <- control.units
 
-placebos <- placebos[which(placebos != 80)] # KWT
-placebos <- placebos[which(placebos != 48)] # FRO
-placebos <- placebos[which(placebos != 115)] # PLW
+placebos <- placebos[which(placebos != 22)] # BRB
 # SVD fails
 
 store.gaps <- matrix(NA, length(years), length(placebos))
@@ -975,28 +1012,26 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude ABW, AND, ARE, ARG, ATG, AUS, AUT, BEL, BHR, BHS, BMU, BRA, BRB, BRN, BWA
-# CAN, CHE, CHL, CYM, CYP, DEU, DMA, ESP, FRA, GAB, GRC, GRD, GRL, HKG, HUN
-# IRL, ISL, ISR, ITA, JPN, KOR, LBN, LBY, LCA, LIE, LUX, MAC, MLT, MUS, MYS
-# NCL, NZL, OMN, PAN, POL, PRT, PYF, QAT, SAU, SGP, SYC, TTO, TUR, URY, USA
-# VEN, ZAF
+# Exclude ARE, ARG, AUS, AUT, BEL, BHR, BHS, BRA, BRN, BWA, CAN, CHE, CHL, CYP, DEU, ESP, FRA
+# GAB, HKG, HUN, IRL, ISL, ISR, ITA, JPN, KOR, KWT, LBN, LBY, LUX, MAC, MLT, MUS, MYS
+# NZL, OMN, PAN, POL, PRT, QAT, SAU, SGP, TTO, TUR, URY, USA, VEN, ZAF
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
-MSPE10 <- colnames(placebo.results[, pre.MSE < 10*UK.pre.MSE])
-MSPE20 <- colnames(placebo.results[, pre.MSE < 20*UK.pre.MSE])
+MSPE30 <- colnames(placebo.results[, pre.MSE < 30*UK.pre.MSE])
 MSPE50 <- colnames(placebo.results[, pre.MSE < 50*UK.pre.MSE])
+MSPE100 <- colnames(placebo.results[, pre.MSE < 100*UK.pre.MSE])
 
 plot.gaps <- placebo.results %>%
   mutate(Year = years) %>%
   melt(id.vars = "Year", value.name = "Gaps", variable.name = "Country")
 plot.gaps5 <- plot.gaps %>%
   filter(Country %in% MSPE5)
-plot.gaps10 <- plot.gaps %>%
-  filter(Country %in% MSPE10)
-plot.gaps20 <- plot.gaps %>%
-  filter(Country %in% MSPE20)
+plot.gaps30 <- plot.gaps %>%
+  filter(Country %in% MSPE30)
 plot.gaps50 <- plot.gaps %>%
   filter(Country %in% MSPE50)
+plot.gaps100 <- plot.gaps %>%
+  filter(Country %in% MSPE100)
 
 # Plot all
 g <- ggplot(plot.gaps) +
@@ -1072,18 +1107,18 @@ ggsave(g,
        file = "Figures/Gaps in emissions_placebo_MSPE5.pdf",
        height = 4.5, width = 6, units = "in")
 
-# Plot excluding placebos with MSPE > 10
-g <- ggplot(plot.gaps10) +
-  geom_line(data = plot.gaps10 %>%
+# Plot excluding placebos with MSPE > 30
+g <- ggplot(plot.gaps30) +
+  geom_line(data = plot.gaps30 %>%
               filter(Country != "GBR"),
             aes(x = Year,
                 y = Gaps,
                 col = Country),
             show.legend = F) +
-  scale_color_manual(values = rep("grey", plot.gaps10 %>% 
+  scale_color_manual(values = rep("grey", plot.gaps30 %>% 
                                     filter(Country != "GBR") %>% 
                                     distinct(Country) %>% nrow)) +
-  geom_line(data = plot.gaps10 %>%
+  geom_line(data = plot.gaps30 %>%
               filter(Country == "GBR"),
             aes(x = Year,
                 y = Gaps),
@@ -1106,44 +1141,7 @@ g <- ggplot(plot.gaps10) +
             label = "CCP enacted",
             col = "black")
 ggsave(g,
-       file = "Figures/Gaps in emissions_placebo_MSPE10.pdf",
-       height = 4.5, width = 6, units = "in")
-
-# Plot excluding placebos with MSPE > 20
-g <- ggplot(plot.gaps20) +
-  geom_line(data = plot.gaps20 %>%
-              filter(Country != "GBR"),
-            aes(x = Year,
-                y = Gaps,
-                col = Country),
-            show.legend = F) +
-  scale_color_manual(values = rep("grey", plot.gaps20 %>% 
-                                    filter(Country != "GBR") %>% 
-                                    distinct(Country) %>% nrow)) +
-  geom_line(data = plot.gaps20 %>%
-              filter(Country == "GBR"),
-            aes(x = Year,
-                y = Gaps),
-            col = "darkorchid",
-            lwd = 1) +
-  coord_cartesian(ylim = c(-1, 1)) +
-  labs(title = "Gap between Treated and Synthetic Control",
-       subtitle = "Re-assigning treatment to placebo countries",
-       x = "Year",
-       y = expression(paste("CO"[2], " emissions per capita"))) +
-  geom_vline(xintercept = 2001,
-             lty = 2) +
-  geom_segment(x = 1999, xend = 2001,
-               y = -0.75, yend = -0.75,
-               col = "black",
-               arrow = arrow(ends = "last", type = "closed",
-                             length = unit(0.1, "inches"))) +
-  geom_text(x = 1997.5,
-            y = -0.75,
-            label = "CCP enacted",
-            col = "black")
-ggsave(g,
-       file = "Figures/Gaps in emissions_placebo_MSPE20.pdf",
+       file = "Figures/Gaps in emissions_placebo_MSPE30.pdf",
        height = 4.5, width = 6, units = "in")
 
 # Plot excluding placebos with MSPE > 50
@@ -1183,9 +1181,46 @@ ggsave(g,
        file = "Figures/Gaps in emissions_placebo_MSPE50.pdf",
        height = 4.5, width = 6, units = "in")
 
+# Plot excluding placebos with MSPE > 100
+g <- ggplot(plot.gaps100) +
+  geom_line(data = plot.gaps100 %>%
+              filter(Country != "GBR"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", plot.gaps100 %>% 
+                                    filter(Country != "GBR") %>% 
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.gaps100 %>%
+              filter(Country == "GBR"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Re-assigning treatment to placebo countries",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.75, yend = -0.75,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.75,
+            label = "CCP enacted",
+            col = "black")
+ggsave(g,
+       file = "Figures/Gaps in emissions_placebo_MSPE100.pdf",
+       height = 4.5, width = 6, units = "in")
+
 # How many control states remain?
-plot.gaps5 %>% distinct(Country)
-# 2 control states
+plot.gaps30 %>% distinct(Country)
+# 7 control states
 
 
 # .. Ratio of post-treatment MSPE to pre-treatment MSPE ####
@@ -1193,11 +1228,11 @@ ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 ratio.MSE["GBR"]
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# For the UK, the post-treatment gap is 7473 times larger than
+# For the UK, the post-treatment gap is 3687 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 2/65 = 0.03076923
+# 1/51 = 0.01960784
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
@@ -1210,7 +1245,7 @@ MSE <- data.frame(country = names(pre.MSE),
 MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # For a one-sided test, the ratio in the UK is the largest.
 # The changes of obtaining a ratio as high as this one would be
-# 1/40 = 0.025
+# 1/30 = 0.03333333
 
 # Plot log of ratio, two-sided test
 g <- ggplot(MSE,
@@ -1275,7 +1310,7 @@ g <- ggplot(MSE,
        y = "Density") +
   geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull,
                xend = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 500,
-               y = 0.00085,
+               y = 0.0009,
                yend = 0.003,
                col = "darkorchid",
                arrow = arrow(ends = "first", type = "closed",
@@ -1303,7 +1338,7 @@ g <- ggplot(MSE %>%
        y = "Density") +
   geom_segment(x = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull,
                xend = MSE %>% filter(country == "GBR") %>% select(ratio) %>% pull - 500,
-               y = 0.00085,
+               y = 0.0013,
                yend = 0.003,
                col = "darkorchid",
                arrow = arrow(ends = "first", type = "closed",
@@ -1402,7 +1437,7 @@ g <- ggplot(plot.LOO) +
             lwd = 1) +
   coord_cartesian(ylim = c(-1, 1)) +
   labs(title = "Gap between Treated and Synthetic Control",
-       subtitle = "Re-assigning treatment to placebo countries",
+       subtitle = "Leave-one-out robustness check",
        x = "Year",
        y = expression(paste("CO"[2], " emissions per capita"))) +
   geom_vline(xintercept = 2001,
@@ -2084,11 +2119,9 @@ UK.post.MSE <- as.numeric(post.MSE["GBR"])
 
 # Exclude countries with 5 times higher MSPE than UK
 colnames(placebo.results[, pre.MSE > 5*UK.pre.MSE])
-# Exclude ABW, AND, ARE, ARG, ATG, AUS, AUT, BEL, BHR, BHS, BMU, BRA, BRB, BRN, BWA
-# CAN, CHE, CHL, CYM, CYP, DEU, DMA, ESP, FRA, FRO, GAB, GRD, GRL, HKG, HUN
-# IRL, ISL, ISR, ITA, JPN, KNA, KOR, KWT, LBN, LBY, LCA, LIE, LUX, MAC, MEX
-# MLT, MUS, MYS, NCL, NZL, OMN, PAN, PLW, POL, PRT, PYF, QAT, SAU, SGP, SYC
-# TTO, TUR, URY, USA, VEN, ZAF
+# Exclude ARE, ARG, AUS, AUT, BEL, BHR, BHS, BRB, BRN, CAN, CHE, CHL, CYP, DEU, ESP, FRA, GAB
+# HKG, HUN, IRL, ISL, ISR, ITA, JPN, KOR, KWT, LBN, LBY, LUX, MLT, MYS, NZL, OMN, PAN
+# POL, PRT, QAT, SAU, SGP, TTO, TUR, URY, USA, VEN, ZAF
 
 MSPE5 <- colnames(placebo.results[, pre.MSE < 5*UK.pre.MSE])
 MSPE10 <- colnames(placebo.results[, pre.MSE < 10*UK.pre.MSE])
@@ -2254,18 +2287,18 @@ ggsave(g,
 
 # How many control states remain?
 plot.gaps5 %>% distinct(Country)
-# 1 control state
+# 6 control states
 
 
 # .. Ratio of post-treatment MSPE to pre-treatment MSPE ####
 ratio.MSE <- post.MSE/pre.MSE
 sort(ratio.MSE)
 (length(ratio.MSE) - which(sort(ratio.MSE) == ratio.MSE["GBR"]) +1 )/ length(ratio.MSE)
-# For the UK, the post-treatment gap is 90 times larger than
+# For the UK, the post-treatment gap is 24028530000 times larger than
 # the pre-treatment gap.
 # If we were to pick a country at random from this sample,
 # the chances of obtaining a ratio as high as this one would be
-# 2/68 = 0.02941176
+# 5/52 = 0.09615385
 
 placebo.results <- cbind(store.gaps, gaps)
 MSE <- data.frame(country = names(pre.MSE),
