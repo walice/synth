@@ -453,7 +453,7 @@ ggplot(data %>%
   theme(legend.position = "none")
 
 # Emissions in effective sample when donor pool is OECD & high & upper middle income
-effective.sample <- c("BEL", "POL", "BHS", "LBY", "URY", "FRO", "LUX", "NCL", "TTO", "SAU")
+effective.sample <- c("POL", "LBY", "BHS", "BEL", "TTO", "URY", "LUX", "BRN")
 g <- ggplot(data_all %>% 
               filter(countrycode %in% effective.sample) %>%
               filter(year >= 1990 & year <= 2010), 
@@ -486,7 +486,7 @@ ggsave(g,
        height = 4.5, width = 6, units = "in")
 
 # Emissions in effective sample when donor pool is OECD & high income
-effective.sample <- c("BEL", "CHE", "POL", "NCL", "FRA", "BHS", "LUX", "FRO", "PYF", "ESP")
+effective.sample <- c("FRA", "DEU", "JPN", "BEL", "ITA")
 g <- ggplot(data_all %>% 
               filter(countrycode %in% effective.sample) %>%
               filter(year >= 1990 & year <= 2010), 
@@ -724,29 +724,29 @@ bal <- synth.tab(synth.res = synth.out,
 
 (mean.UK <- data.frame(bal) %>%
     mutate(Year = seq(1990, 2000)) %>%
-    filter(Year <= 1996) %>%
+    filter(Year <= 1992) %>%
     summarize(mean.UK = mean(Treated)))
-# 9.557256
+# 9.74754
 (mean.sample <- data.frame(bal) %>% 
     mutate(Year = seq(1990, 2000)) %>%
-    filter(Year <= 1996) %>%
+    filter(Year <= 1992) %>%
     summarize(mean.sample = mean(Sample.Mean)))
-# 9.566122
+# 9.131185
 (mean.sample - mean.UK)/mean.UK
-# 0.0009276977
+# -0.06323183
 
 (mean.UK <- data.frame(bal) %>%
     mutate(Year = seq(1990, 2000)) %>%
-    filter(Year > 1996) %>%
+    filter(Year > 1992) %>%
     summarize(mean.UK = mean(Treated)))
-# 9.096078
+# 9.25531
 (mean.sample <- data.frame(bal) %>% 
     mutate(Year = seq(1990, 2000)) %>%
-    filter(Year > 1996) %>%
+    filter(Year > 1992) %>%
     summarize(mean.sample = mean(Sample.Mean)))
-# 10.06729
+# 9.979805
 (mean.sample - mean.UK)/mean.UK
-# 0.1067721
+# 0.07827883
 
 bal <- data.frame(bal) %>%
   mutate(Year = seq(1990, 2000),
