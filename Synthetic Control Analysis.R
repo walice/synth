@@ -459,7 +459,14 @@ a <- ggplot(data,
                    aes(label = country),
                    col = "black",
                    size = 3,
-                   nudge_y = 200000)
+                   nudge_y = 200000) +
+  geom_label(aes(x = 1990, y = 6*10^6, 
+                 label = paste0("Var %~~% 5.4", "%*%10", "^11")), 
+             parse = TRUE,
+             fontface = "italic",
+             fill = "lemonchiffon",
+             size = 2.5,
+             hjust = 0)
 data %>% filter(year >= 1990 & year <= 2001) %>% summarize(var(EN.ATM.CO2E.KT))
 # 538267234910
 
@@ -494,7 +501,14 @@ b <- ggplot(data,
                    aes(label = country),
                    col = "black",
                    size = 3,
-                   nudge_y = 2)
+                   nudge_y = 2) +
+  geom_label(aes(x = 1990, y = 70, 
+                 label = paste0("Var %~~% 8.6", "%*%10", "^1")), 
+             parse = TRUE,
+             fontface = "italic",
+             fill = "lemonchiffon",
+             size = 2.5,
+             hjust = 0)
 data %>% filter(year >= 1990 & year <= 2001) %>% summarize(var(EN.ATM.CO2E.PC))
 # 86.35207
 
@@ -529,7 +543,14 @@ c <- ggplot(data,
                    aes(label = country),
                    col = "black",
                    size = 3,
-                   nudge_y = 0.1)
+                   nudge_y = 0.1) +
+  geom_label(aes(x = 1990, y = 3.5, 
+                 label = paste0("Var %~~% 1.2", "%*%10", "^-1")), 
+             parse = TRUE,
+             fontface = "italic",
+             fill = "lemonchiffon",
+             size = 2.5,
+             hjust = 0)
 data %>% filter(year >= 1990 & year <= 2001) %>% summarize(var(rescaled1990))
 # 0.1224106
 
@@ -564,7 +585,14 @@ d <- ggplot(data,
                    aes(label = country),
                    col = "black",
                    size = 3,
-                   nudge_y = 0.04)
+                   nudge_y = 0.04) +
+  geom_label(aes(x = 1990, y = 1.5, 
+                 label = paste0("Var %~~% 2.6", "%*%10", "^-2")), 
+             parse = TRUE,
+             fontface = "italic",
+             fill = "lemonchiffon",
+             size = 2.5,
+             hjust = 0)
 data %>% filter(year >= 1990 & year <= 2001) %>% summarize(var(rescaled2000))
 # 0.02599876
 
