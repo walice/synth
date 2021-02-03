@@ -458,7 +458,8 @@ a <- ggplot(data,
                      filter(year == 2005),
                    aes(label = country),
                    col = "black",
-                   size = 3)
+                   size = 3,
+                   nudge_y = 200000)
 var(data$EN.ATM.CO2E.KT)
 # 509679109657
 
@@ -492,7 +493,8 @@ b <- ggplot(data,
                      filter(year == 2005),
                    aes(label = country),
                    col = "black",
-                   size = 3)
+                   size = 3,
+                   nudge_y = 3)
 var(data$EN.ATM.CO2E.PC)
 # 79.11444
 
@@ -526,7 +528,8 @@ c <- ggplot(data,
                      filter(year == 2005),
                    aes(label = country),
                    col = "black",
-                   size = 3)
+                   size = 3,
+                   nudge_y = 0.2)
 var(data$rescaled1990)
 # 0.1696732
 
@@ -560,7 +563,8 @@ d <- ggplot(data,
                      filter(year == 2005),
                    aes(label = country),
                    col = "black",
-                   size = 3)
+                   size = 3,
+                   nudge_y = 0.05)
 var(data$rescaled2000)
 # 0.07686827
 
