@@ -69,10 +69,11 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
-#setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
+setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
+#setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
 library(devtools)
+library(ggpubr)
 library(ggrepel)
 library(kableExtra)
 library(Matching)
@@ -426,6 +427,151 @@ save(data, file = "Data/data_OECD_HIC_UMC.Rdata")
 
 
 # .. Figures of summary statistics ####
+# Figure showing the differences in levels and the need to rescale the outcome variable
+a <- ggplot(data,
+       aes(x = year, y = EN.ATM.CO2E.KT)) +
+  geom_line(data = data %>%
+              filter(countrycode != "GBR" & (year >= 1990 & year <= 2005)),
+            aes(col = country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", data %>%
+                                    filter(countrycode != "GBR") %>%
+                                    distinct(country) %>% nrow)) +
+  geom_line(data = data %>%
+              filter(countrycode == "GBR" & (year >= 1990 & year <= 2005)),
+            col = "black",
+            lwd = 1) +
+  geom_line(data = data %>%
+              filter(countrycode == data[which.max(data$EN.ATM.CO2E.KT), "countrycode"] & (year >= 1990 & year <= 2005)),
+            col = "hotpink",
+            lwd = 1) +
+  labs(x = "Year",
+       y = expression(paste("CO"[2], " emissions (kilotons)"))) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == data[which.max(data$EN.ATM.CO2E.KT), "countrycode"]) %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   col = "hotpink",
+                   size = 3) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   col = "black",
+                   size = 3)
+var(data$EN.ATM.CO2E.KT)
+# 509679109657
+
+b <- ggplot(data,
+       aes(x = year, y = EN.ATM.CO2E.PC)) +
+  geom_line(data = data %>%
+              filter(countrycode != "GBR" & (year >= 1990 & year <= 2005)),
+            aes(col = country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", data %>%
+                                    filter(countrycode != "GBR") %>%
+                                    distinct(country) %>% nrow)) +
+  geom_line(data = data %>%
+              filter(countrycode == "GBR" & (year >= 1990 & year <= 2005)),
+            col = "black",
+            lwd = 1) +
+  geom_line(data = data %>%
+              filter(countrycode == data[which.max(data$EN.ATM.CO2E.PC), "countrycode"] & (year >= 1990 & year <= 2005)),
+            col = "hotpink",
+            lwd = 1) +
+  labs(x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == data[which.max(data$EN.ATM.CO2E.PC), "countrycode"]) %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   col = "hotpink",
+                   size = 3) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   col = "black",
+                   size = 3)
+var(data$EN.ATM.CO2E.PC)
+# 79.11444
+
+c <- ggplot(data,
+            aes(x = year, y = rescaled1990)) +
+  geom_line(data = data %>%
+              filter(countrycode != "GBR" & (year >= 1990 & year <= 2005)),
+            aes(col = country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", data %>%
+                                    filter(countrycode != "GBR") %>%
+                                    distinct(country) %>% nrow)) +
+  geom_line(data = data %>%
+              filter(countrycode == "GBR" & (year >= 1990 & year <= 2005)),
+            col = "black",
+            lwd = 1) +
+  geom_line(data = data %>%
+              filter(countrycode == data[which.max(data$rescaled1990), "countrycode"] & (year >= 1990 & year <= 2005)),
+            col = "hotpink",
+            lwd = 1) +
+  labs(x = "Year",
+       y = expression(paste("CO"[2], " emissions relative to 1990"))) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == data[which.max(data$rescaled1990), "countrycode"]) %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   col = "hotpink",
+                   size = 3) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   col = "black",
+                   size = 3)
+var(data$rescaled1990)
+# 0.1696732
+
+d <- ggplot(data,
+            aes(x = year, y = rescaled2000)) +
+  geom_line(data = data %>%
+              filter(countrycode != "GBR" & (year >= 1990 & year <= 2005)),
+            aes(col = country),
+            show.legend = F) +
+  scale_color_manual(values = rep("grey", data %>%
+                                    filter(countrycode != "GBR") %>%
+                                    distinct(country) %>% nrow)) +
+  geom_line(data = data %>%
+              filter(countrycode == "GBR" & (year >= 1990 & year <= 2005)),
+            col = "black",
+            lwd = 1) +
+  geom_line(data = data %>%
+              filter(countrycode == data[which.max(data$rescaled2000), "countrycode"] & (year >= 1990 & year <= 2005)),
+            col = "hotpink",
+            lwd = 1) +
+  labs(x = "Year",
+       y = expression(paste("CO"[2], " emissions relative to 2000"))) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == data[which.max(data$rescaled2000), "countrycode"]) %>%
+                     filter(year == 1990),
+                   aes(label = country),
+                   col = "hotpink",
+                   size = 3) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 2005),
+                   aes(label = country),
+                   col = "black",
+                   size = 3)
+var(data$rescaled2000)
+# 0.07686827
+
+fig <- ggarrange(a, b, c, d, ncol = 2, nrow = 2,
+                 labels = c("A", "B", "C", "D"))
+g <- annotate_figure(fig,
+                top = text_grob("Differences in levels of outcome variable", face = "bold"))
+ggsave(g,
+       file = "Figures/Comparing differences in levels.pdf",
+       height = 7, width = 6, units = "in")
+
 # Emissions per capita in sample
 ggplot(data %>% 
          filter(countrycode != "GBR"), 
@@ -454,27 +600,26 @@ ggplot(data %>%
 
 # Emissions in effective sample when donor pool is OECD & high & upper middle income
 effective.sample <- c("POL", "LBY", "BHS", "BEL", "TTO", "URY", "LUX", "BRN")
-g <- ggplot(data_all %>% 
+g <- ggplot(data %>% 
               filter(countrycode %in% effective.sample) %>%
               filter(year >= 1990 & year <= 2010), 
             aes(x = year, y = EN.ATM.CO2E.PC, col = fct_reorder2(country, year, EN.ATM.CO2E.PC))) + 
   geom_line() +
-  geom_line(data = data_all %>%
+  geom_line(data = data %>%
               filter(countrycode == "GBR") %>%
               filter(year >= 1990 & year <= 2010),
             aes(x = year, y = EN.ATM.CO2E.PC),
             col = "black") +
-  scale_color_paletteer_d(package = "rcartocolor",
-                          palette = "Bold") +
+  scale_color_paletteer_d("rcartocolor::Bold") +
   labs(title = "Emissions trends in the United Kingdom and effective sample",
        x = "Year",
        y = expression(paste("CO"[2], " emissions per capita"))) +
-  geom_label_repel(data = data_all %>% 
+  geom_label_repel(data = data %>% 
                      filter(countrycode %in% effective.sample) %>%
                      filter(year == 2005),
                    aes(label = country),
                    size = 3) +
-  geom_label_repel(data = data_all %>%
+  geom_label_repel(data = data %>%
                      filter(countrycode == "GBR") %>%
                      filter(year == 1990),
                    label = "UK", 
