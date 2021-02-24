@@ -183,10 +183,10 @@
 # PREAMBLE               ####
 ## ## ## ## ## ## ## ## ## ##
 
+setwd("~/Synth/") # Peregrine server
 #setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
-setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
-#setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
-library(devtools)
+#setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
+library(furniture)
 library(ggplot2)
 library(kableExtra)
 library(Matching)
@@ -660,6 +660,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # For a one-sided test, the ratio in the UK is the largest.
 # The changes of obtaining a ratio as high as this one would be
 # 1/26 = 0.03846154
+
+RMSPE.spec2 <- MSE %>% select(country, ratio)
 
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
@@ -1221,6 +1223,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/27 = 0.03703704
 
+RMSPE.spec3 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -1745,6 +1749,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/19 = 0.05263158
 
+RMSPE.spec4 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -2259,6 +2265,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/15 = 0.06666667
 
+RMSPE.spec5 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -2744,6 +2752,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/34 = 0.02941176
 
+RMSPE.spec6 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -3226,6 +3236,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/18 = 0.05555556
 
+RMSPE.spec7 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -3707,6 +3719,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # For a one-sided test, the ratio in the UK is the largest.
 # The changes of obtaining a ratio as high as this one would be
 # 1/14 = 0.07142857
+
+RMSPE.spec8 <- MSE %>% select(country, ratio)
 
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
@@ -4192,6 +4206,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/33 = 0.03030303
 
+RMSPE.spec9 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -4675,6 +4691,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/18 = 0.05555556
 
+RMSPE.spec10 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -5157,6 +5175,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # For a one-sided test, the ratio in the UK is the largest.
 # The changes of obtaining a ratio as high as this one would be
 # 1/15 = 0.06666667
+
+RMSPE.spec11 <- MSE %>% select(country, ratio)
 
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
@@ -5674,6 +5694,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 2/33 = 0.06060606
 
+RMSPE.spec12 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -6188,6 +6210,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 2/21 = 0.0952381
 
+RMSPE.spec13 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -6699,6 +6723,8 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/13 = 0.07692308
 
+RMSPE.spec14 <- MSE %>% select(country, ratio)
+
 # Plot ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = ratio,
@@ -6909,3 +6935,60 @@ kable(cbind(as.character(seq(2,14)),
 capture.output(cbind(as.character(seq(2,14)),
                      scientific(MSE.specs, digits = 3)),
                file = "Results/Supplementary Information/MSE.txt")
+
+load("Results/Placebo countries/RMSPE.Rdata")
+RMSPE <- full_join(RMSPE.spec1, RMSPE.spec2,
+                   by = "country", suffix = c(".1", ".2")) %>%
+  full_join(RMSPE.spec3, by = "country") %>% rename(ratio.3 = ratio) %>%
+  full_join(RMSPE.spec4, by = "country") %>% rename(ratio.4 = ratio) %>%
+  full_join(RMSPE.spec5, by = "country") %>% rename(ratio.5 = ratio) %>%
+  full_join(RMSPE.spec6, by = "country") %>% rename(ratio.6 = ratio) %>%
+  full_join(RMSPE.spec7, by = "country") %>% rename(ratio.7 = ratio) %>%
+  full_join(RMSPE.spec8, by = "country") %>% rename(ratio.8 = ratio) %>%
+  full_join(RMSPE.spec9, by = "country") %>% rename(ratio.9 = ratio) %>%
+  full_join(RMSPE.spec10, by = "country") %>% rename(ratio.10 = ratio) %>%
+  full_join(RMSPE.spec11, by = "country") %>% rename(ratio.11 = ratio) %>%
+  full_join(RMSPE.spec12, by = "country") %>% rename(ratio.12 = ratio) %>%
+  full_join(RMSPE.spec13, by = "country") %>% rename(ratio.13 = ratio) %>%
+  full_join(RMSPE.spec14, by = "country") %>% rename(ratio.14 = ratio) %>%
+  arrange(country)
+
+RMSPE <- RMSPE %>%
+  mutate(mean.ratio = rowmeans(ratio.1,
+                               ratio.2, ratio.3, ratio.4, ratio.5, ratio.6, ratio.7, ratio.8, 
+                               ratio.9, ratio.10, ratio.11, ratio.11, ratio.12, ratio.13, ratio.14,
+                               na.rm = T))
+
+RMSPE <- RMSPE %>%
+  mutate(mean.poolA = rowmeans(ratio.1, ratio.3, ratio.6, ratio.9,
+                               na.rm = T)) %>%
+  mutate(mean.poolB = rowmeans(ratio.4, ratio.7, ratio.10,
+                               na.rm = T)) %>%
+  mutate(mean.poolC = rowmeans(ratio.5, ratio.8, ratio.11,
+                               na.rm = T))
+
+poolA <- RMSPE %>% 
+  arrange(mean.poolA)
+(nrow(poolA) - which(poolA$country == "GBR") +1 )/ nrow(poolA)
+# When we use the average of the RMSPE for the donor pool that
+# includes OECD, high and middle income countries,
+# the chances of obtaining a ratio as high as the UK's would be
+# 2/52 = 0.03846154
+
+poolB <- RMSPE %>% 
+  arrange(mean.poolB) %>%
+  filter(is.finite(mean.poolB))
+(nrow(poolB) - which(poolB$country == "GBR") +1 )/ nrow(poolB)
+# When we use the average of the RMSPE for the donor pool that
+# includes OECD, high and middle income countries,
+# the chances of obtaining a ratio as high as the UK's would be
+# 1/33 = 0.03030303
+
+poolC <- RMSPE %>% 
+  arrange(mean.poolC) %>%
+  filter(is.finite(mean.poolC))
+(nrow(poolC) - which(poolC$country == "GBR") +1 )/ nrow(poolC)
+# When we use the average of the RMSPE for the donor pool that
+# includes OECD, high and middle income countries,
+# the chances of obtaining a ratio as high as the UK's would be
+# 1/23 = 0.04347826
