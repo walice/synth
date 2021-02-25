@@ -17,12 +17,9 @@
 # .. Table of sample for SI
 # Specification in Paper
 # .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high & upper middle income
-# Synth
 # .. Running Synth 
-# .. Pre-treatment predictor values 
-# .. Weights for the predictor variables 
-# .. Weights for countries in the donor pool 
 # .. Export results
+# .. Donor weights figure
 # Generate Results    
 # .. Outcomes
 # .. Balance tests
@@ -30,17 +27,18 @@
 # .. Convert emissions per capita
 # Placebo Countries
 # .. Running Synth
-# .. Outcomes
 # .. Store emissions trajectories in treated unit and its synthetic counterpart
 # .. Calculating annual gaps between the UK and its synthetic counterpart
 # .. Emissions trajectories figure
 # .. Placebo countries figure
 # .. Ratio of post-treatment MSPE to pre-treatment MSPE
-# Leave-One-Out Check    
-# .. Running Synth 
+# .. RMSPE figures
+# Leave-One-Out Check
+# .. Running Synth
+# .. Store emissions trajectories for synthetic UK when leaving out one country
 # .. Calculating annual gaps between the UK and its synthetic counterpart
 # .. Leave-one-out figure
-# .. More analysis when LUX is dropped
+# .. More analysis when specific countries are dropped
 # Placebo Years
 # .. Running Synth
 # .. Store emissions trajectories in synthetic control
@@ -56,7 +54,6 @@ setwd("~/Synth/") # Peregrine server
 #setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
 #setwd("C:/Users/alepissier/Box Sync/LepissierMildenberger/Synth/") # Alice work
 #setwd("~/Box Sync/LepissierMildenberger/Synth/") # Matto
-library(devtools)
 library(ggpubr)
 library(ggrepel)
 library(kableExtra)
@@ -68,9 +65,6 @@ library(scales)
 library(stargazer)
 library(Synth)
 library(tidyverse)
-#devtools::install_github('chadhazlett/KBAL')
-#devtools::install_github('xuyiqing/tjbal')
-library(tjbal)
 library(WDI)
 library(xlsx)
 set.seed(1509)
@@ -647,17 +641,17 @@ ggsave(g,
        height = 4.5, width = 6, units = "in")
 
 # Population in effective sample when donor pool is OECD & high & upper middle income
-effective.sample <- c("BHS", "TTO", "LUX")
+effective.sample <- c("POL", "LBY", "BHS", "BEL", "TTO", "URY", "LUX", "BRN")
 ggplot(data %>%
               filter(countrycode %in% effective.sample) %>%
               filter(year >= 1990 & year <= 2010),
             aes(x = year, y = SP.POP.TOTL, col = fct_reorder2(country, year, SP.POP.TOTL))) +
   geom_line() +
-  # geom_line(data = data %>%
-  #             filter(countrycode == "GBR") %>%
-  #             filter(year >= 1990 & year <= 2010),
-  #           aes(x = year, y = SP.POP.TOTL),
-  #           col = "black") +
+  geom_line(data = data %>%
+              filter(countrycode == "GBR") %>%
+              filter(year >= 1990 & year <= 2010),
+            aes(x = year, y = SP.POP.TOTL),
+            col = "black") +
   scale_color_paletteer_d("rcartocolor::Bold") +
   labs(title = "Population trends in the United Kingdom and effective sample",
        x = "Year",
@@ -667,27 +661,26 @@ ggplot(data %>%
                      filter(year == 2005),
                    aes(label = country),
                    size = 3) +
-  # geom_label_repel(data = data %>%
-  #                    filter(countrycode == "GBR") %>%
-  #                    filter(year == 1990),
-  #                  label = "UK",
-  #                  col = "black",
-  #                  size = 3) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 1990),
+                   label = "UK",
+                   col = "black",
+                   size = 3) +
   theme(legend.position = "none")
 
 # Emissions levels in effective sample when donor pool is OECD & high & upper middle income
-# effective.sample <- c("POL", "LBY", "BHS", "BEL", "TTO", "URY", "LUX", "BRN")
-effective.sample <- c("BHS", "TTO", "LUX")
+effective.sample <- c("POL", "LBY", "BHS", "BEL", "TTO", "URY", "LUX", "BRN")
 ggplot(data %>%
          filter(countrycode %in% effective.sample) %>%
          filter(year >= 1990 & year <= 2010),
        aes(x = year, y = EN.ATM.CO2E.KT, col = fct_reorder2(country, year, EN.ATM.CO2E.KT))) +
   geom_line() +
-  # geom_line(data = data %>%
-  #             filter(countrycode == "GBR") %>%
-  #             filter(year >= 1990 & year <= 2010),
-  #           aes(x = year, y = EN.ATM.CO2E.KT),
-  #           col = "black") +
+  geom_line(data = data %>%
+              filter(countrycode == "GBR") %>%
+              filter(year >= 1990 & year <= 2010),
+            aes(x = year, y = EN.ATM.CO2E.KT),
+            col = "black") +
   scale_color_paletteer_d("rcartocolor::Bold") +
   labs(title = "Emissions trends in the United Kingdom and effective sample",
        x = "Year",
@@ -697,12 +690,12 @@ ggplot(data %>%
                      filter(year == 2005),
                    aes(label = country),
                    size = 3) +
-  # geom_label_repel(data = data %>%
-  #                    filter(countrycode == "GBR") %>%
-  #                    filter(year == 1990),
-  #                  label = "UK",
-  #                  col = "black",
-  #                  size = 3) +
+  geom_label_repel(data = data %>%
+                     filter(countrycode == "GBR") %>%
+                     filter(year == 1990),
+                   label = "UK",
+                   col = "black",
+                   size = 3) +
   theme(legend.position = "none")
 
 # Emissions in effective sample when donor pool is OECD & high income
@@ -764,6 +757,7 @@ rm(codes, countries, policies, WB, treated, indicators, missing, nmiss,
 load("Data/data_OECD_HIC_UMC.Rdata")
 whoder()
 
+
 # .. Optimize over 1990-2001, CO2 per capita, no covariates, OECD & high & upper middle income ####
 treated.unit <- data %>%
   filter(countrycode == "GBR") %>%
@@ -817,11 +811,6 @@ synth.spec <- list(treated = whatname(dataprep.out$tag[["treatment.identifier"]]
 capture.output(synth.spec, file = "Results/Specification.txt")
 
 
-
-## ## ## ## ## ## ## ## ## ##
-# SYNTH                  ####
-## ## ## ## ## ## ## ## ## ##
-
 # .. Running Synth ####
 synth.out <- synth(data.prep.obj = dataprep.out)
 
@@ -829,16 +818,13 @@ synth.out <- synth(data.prep.obj = dataprep.out)
 synth.tables <- synth.tab(dataprep.res = dataprep.out,
                           synth.res = synth.out)
 
-
-# .. Pre-treatment predictor values ####
+# Pre-treatment predictor values
 synth.tables$tab.pred
 
-
-# .. Weights for the predictor variables ####
+# Weights for the predictor variables
 synth.tables$tab.v
 
-
-# .. Weights for countries in the donor pool ####
+# Weights for countries in the donor pool
 synth.tables$tab.w
 
 
@@ -861,7 +847,8 @@ row.names(bal) <- seq(1990, 2000)
 kable(bal,
       format = "latex")
 
-# Plot
+
+# .. Donor weights figure ####
 g <- ggplot(donor.weights,
             aes(x = reorder(Donor.country, Donor.weight), 
                 y = Donor.weight)) +
@@ -1102,6 +1089,7 @@ results %>%
   results %>% 
   filter(year > 2001) %>% 
   summarize_at(vars(UK.Mt), sum) * 100
+# -6.897613
 
 
 
@@ -1467,6 +1455,11 @@ MSE %>% filter(TE2005 <0) %>% arrange(ratio)
 # The changes of obtaining a ratio as high as this one would be
 # 1/30 = 0.03333333
 
+RMSPE.spec1 <- MSE %>% select(country, ratio)
+save(RMSPE.spec1, file = "Results/Placebo countries/RMSPE.Rdata")
+
+
+# .. RMSPE figures ####
 # Plot log of ratio, two-sided test
 g <- ggplot(MSE,
             aes(x = reorder(country, ratio), y = log(ratio),
@@ -1589,6 +1582,9 @@ store.gaps <- matrix(NA, length(years), length(leaveoneout.names))
 colnames(store.gaps) <- paste0("No_", leaveoneout.names)
 store.gaps
 
+store.synth <- matrix(NA, length(years), length(leaveoneout.names))
+colnames(store.synth) <- paste0("No_", leaveoneout.names)
+
 nloops <- length(leaveoneout.controls)+1
 
 for (i in 1:nloops){
@@ -1622,12 +1618,19 @@ for (i in 1:nloops){
   # .. Running Synth ####
   synth.out <- synth(data.prep.obj = dataprep.out)
 
+  
+  # .. Store emissions trajectories for synthetic UK when leaving out one country ####
+  store.synth[,i] <- dataprep.out$Y0plot %*% synth.out$solution.w
+  
 
   # .. Calculating annual gaps between the UK and its synthetic counterpart ####
   store.gaps[,i] <- dataprep.out$Y1plot - (dataprep.out$Y0plot %*% synth.out$solution.w)
 }
 
+save(store.synth, file = "Results/Leave-one-out/store.synth.Rdata")
 save(store.gaps, file = "Results/Leave-one-out/store.gaps.Rdata")
+
+load("Results/Leave-one-out/store.synth.Rdata")
 load("Results/Leave-one-out/store.gaps.Rdata")
 
 
@@ -1649,8 +1652,8 @@ g <- ggplot(plot.LOO) +
   scale_color_manual(values = rep("thistle", plot.LOO %>%
                                     filter(Country != "GBR") %>%
                                     distinct(Country) %>% nrow)) +
-  geom_line(data = plot.gaps %>%
-              filter(Country == "GBR"),
+  geom_line(data = plot.LOO %>%
+              filter(Country == "No_Dropped"),
             aes(x = Year,
                 y = Gaps),
             col = "darkorchid",
@@ -1675,20 +1678,206 @@ ggsave(g,
        file = "Figures/Gaps in emissions_leave one out.pdf",
        height = 4.5, width = 6, units = "in")
 
+# Plot with highlighted countries
+g <- ggplot(plot.LOO) +
+  geom_line(data = plot.LOO %>%
+              filter(Country != "GBR") %>%
+              filter(Country != "BEL") %>%
+              filter(Country != "BHS")%>%
+              filter(Country != "LUX"),
+            aes(x = Year,
+                y = Gaps,
+                col = Country),
+            show.legend = F) +
+  scale_color_manual(values = rep("thistle", plot.LOO %>%
+                                    filter(Country != "GBR") %>%
+                                    distinct(Country) %>% nrow)) +
+  geom_line(data = plot.LOO %>%
+              filter(Country == "No_Dropped"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid",
+            lwd = 1) +
+  geom_line(data = plot.LOO %>%
+              filter(Country == "No_LUX"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid4") +
+  geom_line(data = plot.LOO %>%
+              filter(Country == "No_BEL"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid4") +
+  geom_line(data = plot.LOO %>%
+              filter(Country == "No_BHS"),
+            aes(x = Year,
+                y = Gaps),
+            col = "darkorchid4") +
+  coord_cartesian(ylim = c(-1, 1)) +
+  labs(title = "Gap between Treated and Synthetic Control",
+       subtitle = "Leave-one-out robustness check",
+       x = "Year",
+       y = expression(paste("CO"[2], " emissions per capita"))) +
+  geom_vline(xintercept = 2001,
+             lty = 2) +
+  geom_segment(x = 1999, xend = 2001,
+               y = -0.75, yend = -0.75,
+               col = "black",
+               arrow = arrow(ends = "last", type = "closed",
+                             length = unit(0.1, "inches"))) +
+  geom_text(x = 1997.5,
+            y = -0.75,
+            label = "CCP enacted",
+            col = "black")
+ggsave(g,
+       file = "Figures/Gaps in emissions_leave one out_highlight.pdf",
+       height = 4.5, width = 6, units = "in")
 
-# .. More analysis when LUX is dropped ####
-plot.LOO %>% filter(Year > 2001 & Country == "No_LUX") %>% summarize(mean(Gaps))
-# -0.50712
-plot.LOO %>% filter(Year == 2005) %>% filter(Gaps == max(Gaps))
-# 2005  No_BHS -0.5089209
-plot.LOO %>% filter(Year == 2005) %>% filter(Gaps == min(Gaps))
-# 2005  No_BEL -1.089384
-plot.LOO %>% filter(Year == 2005 & Country == "No_LUX")
-# 2005  No_LUX -0.8331333
 
-# TO DO next:
-# Run the placebo inference test when Luxembourg and Bahamas are dropped
-# Also do TTO because TTO had increasing emissions levels and stable population
+# .. More analysis when specific countries are dropped ####
+# Convert emissions per capita
+results <- left_join(
+  data.frame(store.gaps) %>%
+    mutate(Year = years) %>%
+    reshape2::melt(id.vars = "Year", value.name = "gaps.PC", variable.name = "Country"),
+  data.frame(store.synth) %>%
+    mutate(Year = years) %>%
+    reshape2::melt(id.vars = "Year", value.name = "synth.PC", variable.name = "Country"),
+  by = c("Year", "Country")) %>%
+  left_join(data %>%
+              filter(countrycode == "GBR") %>%
+              filter(year >= 1990 & year <= 2005) %>%
+              select(year, 
+                     population = SP.POP.TOTL, 
+                     UK.t = EN.ATM.CO2E.KT,
+                     UK.PC = EN.ATM.CO2E.PC) %>%
+              mutate(UK.t = UK.t * 10^3),
+            by = c("Year" = "year")) %>%
+  mutate(synth.t = synth.PC * population,
+         synth.Mt = synth.t / 10^6,
+         UK.Mt = UK.t / 10^6) %>%
+  mutate(gaps.t = gaps.PC * population,
+         gaps.Mt = gaps.t / 10^6) %>%
+  select(Year, Country,
+         UK.PC, synth.PC, gaps.PC,
+         UK.Mt, synth.Mt, gaps.Mt) %>%
+  mutate(gaps.pct = (UK.Mt - synth.Mt) / synth.Mt)
+
+# Range of results
+results %>% filter(Year == 2005 & Country == "No_Dropped") %>% select(gaps.pct)
+# -0.09751784
+results %>% filter(Year == 2005) %>% filter(gaps.pct == min(gaps.pct)) %>% 
+  select(Country, gaps.pct)
+# No_BEL -0.1081561
+results %>% filter(Year == 2005) %>% filter(gaps.pct == max(gaps.pct)) %>% 
+  select(Country, gaps.pct)
+# No_BHS -0.05361657
+results %>% filter(Year == 2005 & Country == "No_LUX") %>% select(gaps.pct)
+# -0.08487441
+results %>% filter(Year == 2005 & Country == "No_TTO") %>% select(gaps.pct)
+# -0.0633569
+
+# Mean Square Prediction Error Pre-Treatment
+pre.MSE <- apply(leaveoneout.results[gap.start:gap.end.pre, ]^2, 2, mean)
+
+# Mean Square Prediction Error Post-Treatment
+post.MSE <- apply(leaveoneout.results[gap.start.post:gap.end, ]^2, 2, mean)
+
+# Ratio of post-treatment MSPE to pre-treatment MSPE
+leaveoneout.results <- store.gaps
+MSE.LOO <- data.frame(country = names(pre.MSE),
+                      pre.MSE = pre.MSE,
+                      post.MSE = post.MSE,
+                      ratio = post.MSE/pre.MSE,
+                      TE2005 = leaveoneout.results[gap.end,])
+
+ratio.NoPOL <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_POL")) %>%
+  arrange(ratio)
+ratio.NoPOL
+(nrow(ratio.NoPOL) - which(ratio.NoPOL$country == "No_POL") +1 )/ nrow(ratio.NoPOL)
+# When Poland is dropped, the post-treatment gap for the UK 
+# is 359 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 4/51 = 0.07843137
+
+ratio.NoLBY <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_LBY")) %>%
+  arrange(ratio)
+ratio.NoLBY
+(nrow(ratio.NoLBY) - which(ratio.NoLBY$country == "No_LBY") +1 )/ nrow(ratio.NoLBY)
+# When Libya is dropped, the post-treatment gap for the UK 
+# is 908 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 2/51 = 0.03921569
+
+ratio.NoBHS <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_BHS")) %>%
+  arrange(ratio)
+ratio.NoBHS
+(nrow(ratio.NoBHS) - which(ratio.NoBHS$country == "No_BHS") +1 )/ nrow(ratio.NoBHS)
+# When The Bahamas is dropped, the post-treatment gap for the UK 
+# is 126 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 6/51 = 0.1176471
+
+ratio.NoBEL <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_BEL")) %>%
+  arrange(ratio)
+ratio.NoBEL
+(nrow(ratio.NoBEL) - which(ratio.NoBEL$country == "No_BEL") +1 )/ nrow(ratio.NoBEL)
+# When Belgium is dropped, the post-treatment gap for the UK 
+# is 389 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 4/51 = 0.07843137
+
+ratio.NoTTO <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_TTO")) %>%
+  arrange(ratio)
+ratio.NoTTO
+(nrow(ratio.NoTTO) - which(ratio.NoTTO$country == "No_TTO") +1 )/ nrow(ratio.NoTTO)
+# When Trinidad and Tobago is dropped, the post-treatment gap for the UK 
+# is 585 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 3/51 = 0.05882353
+
+ratio.NoURY <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_URY")) %>%
+  arrange(ratio)
+ratio.NoURY
+(nrow(ratio.NoURY) - which(ratio.NoURY$country == "No_URY") +1 )/ nrow(ratio.NoURY)
+# When Uruguay is dropped, the post-treatment gap for the UK 
+# is 4418 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 1/51 = 0.01960784
+
+ratio.NoLUX <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_LUX")) %>%
+  arrange(ratio)
+ratio.NoLUX
+(nrow(ratio.NoLUX) - which(ratio.NoLUX$country == "No_LUX") +1 )/ nrow(ratio.NoLUX)
+# When Luxembourg is dropped, the post-treatment gap for the UK 
+# is 1638 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 1/51 = 0.01960784
+
+ratio.NoBRN <- rbind(MSE %>% filter(country != "GBR") %>% select(-col),
+                     MSE.LOO %>% filter(country == "No_BRN")) %>%
+  arrange(ratio)
+ratio.NoBRN
+(nrow(ratio.NoBRN) - which(ratio.NoBRN$country == "No_BRN") +1 )/ nrow(ratio.NoBRN)
+# When Brunei is dropped, the post-treatment gap for the UK 
+# is 2075 times larger than the pre-treatment gap.
+# If we were to pick a country at random from this sample,
+# the chances of obtaining a ratio as high as this one would be
+# 1/51 = 0.01960784
 
 
 
@@ -1804,6 +1993,7 @@ for (y in 1:ncol(store.synth)){
   # .. Running Synth ####
   synth.out <- synth(data.prep.obj = dataprep.out)
 
+  
   # .. Store emissions trajectories in synthetic control ####
   store.synth[,y] <- dataprep.out$Y0plot %*% synth.out$solution.w
 }
