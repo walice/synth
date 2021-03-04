@@ -1,9 +1,9 @@
 # Synth
 # Alice Lepissier
 
-## ## ## ## ## ## ## ## ## ##
-# INDEX                  ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# INDEX                     ####
+## ## ## ## ## ## ## ## ## ## ##
 # Preamble
 # Functions
 # Data
@@ -46,9 +46,9 @@
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# PREAMBLE               ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# PREAMBLE                  ####
+## ## ## ## ## ## ## ## ## ## ##
 
 setwd("~/Synth/") # Peregrine server
 #setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
@@ -74,9 +74,9 @@ theme_update(axis.line = element_line(color = "grey"))
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# FUNCTIONS              ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# FUNCTIONS                 ####
+## ## ## ## ## ## ## ## ## ## ##
 
 whodat <- function(id) {
   country <- NA
@@ -116,9 +116,9 @@ whoder <- function() {
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# DATA                   ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# DATA                      ####
+## ## ## ## ## ## ## ## ## ## ##
 
 codes <- read.xlsx2("Data/Codes_Masterlist.xlsx", sheetName = "Codes") %>%
   mutate_all(as.character)
@@ -750,9 +750,9 @@ rm(codes, countries, policies, WB, treated, indicators, missing, nmiss,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION IN PAPER ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION IN PAPER    ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC_UMC.Rdata")
 whoder()
@@ -866,9 +866,9 @@ ggsave(g, file = "Figures/Donor weights.pdf",
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# GENERATE RESULTS       ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# GENERATE RESULTS          ####
+## ## ## ## ## ## ## ## ## ## ##
 
 # .. Outcomes ####
 names(dataprep.out)
@@ -957,9 +957,9 @@ bal <- synth.tab(synth.res = synth.out,
 
 bal <- data.frame(bal) %>%
   mutate(Year = seq(1990, 2000),
-         Weighted = Synthetic - Treated,
-         Unweighted = Sample.Mean - Treated) %>%
-  select(Year, Weighted, Unweighted) %>%
+         `Synthetic control` = Synthetic - Treated,
+         `Unweighted sample` = Sample.Mean - Treated) %>%
+  select(Year, `Synthetic control`, `Unweighted sample`) %>%
   melt(id.vars = "Year")
 
 g <- ggplot(bal, aes(x = value, y = Year, col = variable)) +
@@ -1093,9 +1093,9 @@ results %>%
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# PLACEBO COUNTRIES      ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# PLACEBO COUNTRIES         ####
+## ## ## ## ## ## ## ## ## ## ##
 
 placebos <- control.units
 
@@ -1568,9 +1568,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# LEAVE-ONE-OUT CHECK    ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# LEAVE-ONE-OUT CHECK       ####
+## ## ## ## ## ## ## ## ## ## ##
 
 leaveoneout.controls <- control.units
 

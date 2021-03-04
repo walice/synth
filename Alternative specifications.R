@@ -1,9 +1,9 @@
 # Synth
 # Alice Lepissier
 
-## ## ## ## ## ## ## ## ## ##
-# INDEX                  ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# INDEX                     ####
+## ## ## ## ## ## ## ## ## ## ##
 # Preamble
 # Functions
 # Data
@@ -179,9 +179,9 @@
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# PREAMBLE               ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# PREAMBLE                  ####
+## ## ## ## ## ## ## ## ## ## ##
 
 setwd("~/Synth/") # Peregrine server
 #setwd("C:/Users/Alice/Box Sync/LepissierMildenberger/Synth/") # Alice laptop
@@ -203,9 +203,9 @@ theme_update(axis.line = element_line(color = "grey"))
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# FUNCTIONS              ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# FUNCTIONS                 ####
+## ## ## ## ## ## ## ## ## ## ##
 
 whodat <- function(id) {
   country <- NA
@@ -245,9 +245,9 @@ whoder <- function() {
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 2        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 2           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC_UMC.Rdata")
 
@@ -820,9 +820,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 3        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 3           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC_UMC.Rdata")
 
@@ -1378,9 +1378,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 4        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 4           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC.Rdata")
 
@@ -1894,9 +1894,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 5        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 5           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD.Rdata")
 
@@ -2410,9 +2410,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 6        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 6           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC_UMC.Rdata")
 
@@ -2895,9 +2895,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 7        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 7           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC.Rdata")
 
@@ -3380,9 +3380,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 8        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 8           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD.Rdata")
 
@@ -3864,9 +3864,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 9        ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 9           ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC_UMC.Rdata")
 
@@ -4350,9 +4350,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 10       ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 10          ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC.Rdata")
 
@@ -4836,9 +4836,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 11       ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 11          ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD.Rdata")
 
@@ -5320,9 +5320,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 12       ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 12          ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC_UMC.Rdata")
 
@@ -5839,9 +5839,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 13       ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 13          ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD_HIC.Rdata")
 
@@ -6355,9 +6355,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# SPECIFICATION 14       ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# SPECIFICATION 14          ####
+## ## ## ## ## ## ## ## ## ## ##
 
 load("Data/data_OECD.Rdata")
 
@@ -6868,9 +6868,9 @@ ggsave(g,
 
 
 
-## ## ## ## ## ## ## ## ## ##
-# TABLES FOR SI          ####
-## ## ## ## ## ## ## ## ## ##
+## ## ## ## ## ## ## ## ## ## ##
+# TABLES FOR SI             ####
+## ## ## ## ## ## ## ## ## ## ##
 
 weights <- full_join(weights.spec2 %>%
                        rename(Spec2 = Donor.weight),
